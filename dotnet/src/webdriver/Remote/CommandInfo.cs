@@ -18,7 +18,7 @@
 
 using System;
 using System.Globalization;
-using System.Net;
+using System.Net.Http;
 
 namespace OpenQA.Selenium.Remote
 {
@@ -80,9 +80,8 @@ namespace OpenQA.Selenium.Remote
         /// <param name="baseUri">Uri that will have the command run against</param>
         /// <param name="commandToExecute">Command to execute</param>
         /// <returns>A web request of what has been run</returns>
-        public HttpWebRequest CreateWebRequest(Uri baseUri, Command commandToExecute)
+        public HttpRequestMessage CreateWebRequest(Uri baseUri, Command commandToExecute)
         {
-            HttpWebRequest request = null;
             string[] urlParts = this.resourcePath.Split(new string[] { "/" }, StringSplitOptions.RemoveEmptyEntries);
             for (int i = 0; i < urlParts.Length; i++)
             {
@@ -97,17 +96,15 @@ namespace OpenQA.Selenium.Remote
             string relativeUrlString = string.Join("/", urlParts);
             Uri relativeUri = new Uri(relativeUrlString, UriKind.Relative);
             bool uriCreateSucceeded = Uri.TryCreate(baseUri, relativeUri, out fullUri);
-            if (uriCreateSucceeded)
+
+            if (!uriCreateSucceeded)
             {
-                request = HttpWebRequest.Create(fullUri) as HttpWebRequest;
-                request.Method = this.method;
-            }
-            else
-            {
-                throw new InvalidOperationException(string.Format(CultureInfo.InvariantCulture, "Unable to create URI from base {0} and relative path {1}", baseUri == null ? string.Empty : baseUri.ToString(), relativeUrlString));
+                throw new InvalidOperationException(string.Format(CultureInfo.InvariantCulture,
+                    "Unable to create URI from base {0} and relative path {1}",
+                    baseUri == null ? string.Empty : baseUri.ToString(), relativeUrlString));
             }
 
-            return request;
+            return new HttpRequestMessage(new HttpMethod(method), fullUri);
         }
 
         private static string GetCommandPropertyValue(string propertyName, Command commandToExecute)

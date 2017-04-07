@@ -20,7 +20,11 @@ using System;
 using System.Globalization;
 using System.IO;
 using System.Net;
+using System.Net.Http;
+using System.Net.Http.Headers;
 using System.Text;
+using System.Threading;
+using System.Threading.Tasks;
 using WebDriver.Internal;
 
 namespace OpenQA.Selenium.Remote
@@ -37,6 +41,15 @@ namespace OpenQA.Selenium.Remote
         private TimeSpan serverResponseTimeout;
         private bool enableKeepAlive;
         private CommandInfoRepository commandInfoRepository = new WebDriverWireProtocolCommandInfoRepository();
+        private static readonly HttpClient HttpClient;
+
+        static HttpCommandExecutor()
+        {
+            HttpClient = new HttpClient(new HttpClientHandler
+            {
+                MaxConnectionsPerServer = 2000
+            });
+        }
 
         /// <summary>
         /// Initializes a new instance of the <see cref="HttpCommandExecutor"/> class
@@ -57,6 +70,12 @@ namespace OpenQA.Selenium.Remote
         /// with HTTP requests; otherwise, <see langword="false"/>.</param>
         public HttpCommandExecutor(Uri addressOfRemoteServer, TimeSpan timeout, bool enableKeepAlive)
         {
+            var handler = new HttpClientHandler();
+
+            handler.MaxConnectionsPerServer = 5000;
+            
+
+
             if (addressOfRemoteServer == null)
             {
                 throw new ArgumentNullException("addressOfRemoteServer", "You must specify a remote address to connect to");
@@ -106,44 +125,49 @@ namespace OpenQA.Selenium.Remote
             }
 
             CommandInfo info = this.commandInfoRepository.GetCommandInfo(commandToExecute.Name);
-            HttpWebRequest request = info.CreateWebRequest(this.remoteServerUri, commandToExecute);
-            request.Accept = RequestAcceptHeader;
-#if !NETSTANDARD1_5
-            request.Timeout = (int)this.serverResponseTimeout.TotalMilliseconds;
-            request.KeepAlive = this.enableKeepAlive;
-            request.ServicePoint.ConnectionLimit = 2000;
-#endif
-            if (request.Method == CommandInfo.PostCommand)
-            {
-                string payload = commandToExecute.ParametersAsJsonString;
-                byte[] data = Encoding.UTF8.GetBytes(payload);
-                request.ContentType = ContentTypeHeader;
-                Stream requestStream = request.GetRequestStream();
-                requestStream.Write(data, 0, data.Length);
-                requestStream.Dispose();
-            }
 
-            Response toReturn = this.CreateResponse(request);
-            if (commandToExecute.Name == DriverCommand.NewSession && toReturn.IsSpecificationCompliant)
+            using (var request = info.CreateWebRequest(this.remoteServerUri, commandToExecute))
             {
-                // If we are creating a new session, sniff the response to determine
-                // what protocol level we are using. If the response contains a
-                // field called "status", it's not a spec-compliant response.
-                // Each response is polled for this, and sets a property describing
-                // whether it's using the W3C protocol dialect.
-                // TODO(jimevans): Reverse this test to make it the default path when
-                // most remote ends speak W3C, then remove it entirely when legacy
-                // protocol is phased out.
-                this.commandInfoRepository = new W3CWireProtocolCommandInfoRepository();
-            }
+                request.Headers.Accept.ParseAdd(RequestAcceptHeader);
 
-            return toReturn;
+                //#if !NETSTANDARD1_5
+                //            request.Timeout = (int)this.serverResponseTimeout.TotalMilliseconds;
+                //            request.KeepAlive = this.enableKeepAlive;
+                //            request.ServicePoint.ConnectionLimit = 2000;
+                //#endif
+
+                if (request.Method == HttpMethod.Post)
+                {
+                    request.Content = new StringContent(
+                        commandToExecute.ParametersAsJsonString,
+                        Encoding.UTF8,
+                        JsonMimeType);
+                }
+              
+                Response toReturn = this.CreateResponse(request);
+
+                if (commandToExecute.Name == DriverCommand.NewSession && toReturn.IsSpecificationCompliant)
+                {
+                    // If we are creating a new session, sniff the response to determine
+                    // what protocol level we are using. If the response contains a
+                    // field called "status", it's not a spec-compliant response.
+                    // Each response is polled for this, and sets a property describing
+                    // whether it's using the W3C protocol dialect.
+                    // TODO(jimevans): Reverse this test to make it the default path when
+                    // most remote ends speak W3C, then remove it entirely when legacy
+                    // protocol is phased out.
+                    this.commandInfoRepository = new W3CWireProtocolCommandInfoRepository();
+                }
+
+                return toReturn;
+            }
         }
 
-        private static string GetTextOfWebResponse(HttpWebResponse webResponse)
+        private static string GetTextOfWebResponse(HttpResponseMessage webResponse)
         {
             // StreamReader.Close also closes the underlying stream.
-            Stream responseStream = webResponse.GetResponseStream();
+            //Stream responseStream = webResponse.GetResponseStream();
+            var responseStream = webResponse.Content.ReadAsStreamAsync().Result;
             StreamReader responseStreamReader = new StreamReader(responseStream, Encoding.UTF8);
             string responseString = responseStreamReader.ReadToEnd();
             responseStreamReader.Dispose();
@@ -158,17 +182,21 @@ namespace OpenQA.Selenium.Remote
             return responseString;
         }
 
-        private Response CreateResponse(WebRequest request)
+        private Response CreateResponse(HttpRequestMessage request)
         {
             Response commandResponse = new Response();
-            HttpWebResponse webResponse = null;
+            HttpResponseMessage webResponse = null;
+
+            var cancellationToken = new CancellationTokenSource(this.serverResponseTimeout).Token;
+            
             try
             {
-                webResponse = request.GetResponse() as HttpWebResponse;
+                webResponse = HttpClient.SendAsync(request, cancellationToken).Result;
             }
             catch (WebException ex)
             {
-                webResponse = ex.Response as HttpWebResponse;
+
+
                 if (ex.Status == WebExceptionStatus.Timeout)
                 {
                     string timeoutMessage = "The HTTP request to the remote WebDriver server for URL {0} timed out after {1} seconds.";
@@ -188,7 +216,7 @@ namespace OpenQA.Selenium.Remote
             else
             {
                 string responseString = GetTextOfWebResponse(webResponse);
-                if (webResponse.ContentType != null && webResponse.ContentType.StartsWith(JsonMimeType, StringComparison.OrdinalIgnoreCase))
+                if (webResponse.Content.Headers.ContentType != null && webResponse.Content.Headers.ContentType.MediaType.StartsWith(JsonMimeType, StringComparison.OrdinalIgnoreCase))
                 {
                     commandResponse = Response.FromJson(responseString);
                 }
