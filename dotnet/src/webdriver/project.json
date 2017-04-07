@@ -1,0 +1,34 @@
+{
+  "version": "1.0.0-*",
+  "buildOptions": {
+    "emitEntryPoint": false
+  },
+
+  "dependencies": {
+    "NETStandard.Library": "1.6.0",
+    "Newtonsoft.Json": "9.0.1",
+    "CoreCompat.System.Drawing": "1.0.0-beta006",
+    "System.Security.Cryptography.X509Certificates": "4.3.0",
+    "System.Net.NameResolution": "4.3.0",
+    "System.Net.Requests": "4.3.0",
+    "System.Reflection.TypeExtensions": "4.3.0",
+    "System.Diagnostics.Process": "4.3.0",
+    "System.Net.NetworkInformation": "4.3.0",
+    "System.Threading.Thread": "4.3.0",
+    "Microsoft.Win32.Registry": "4.3.0",
+    "System.Xml.XmlDocument": "4.3.0",
+    "System.Net.Security": "4.3.0",
+    "System.Xml.XPath.XmlDocument": "4.3.0",
+    "System.Threading.Tasks": "4.3.0",
+    "System.Diagnostics.Tools": "4.3.0",
+    "System.Net.Sockets": "4.3.0",
+    "System.Console": "4.3.0",
+    "System.IO.Compression": "4.3.0"
+  },
+
+  "frameworks": {
+    "netstandard1.5": {
+    
+    }
+  }
+}
