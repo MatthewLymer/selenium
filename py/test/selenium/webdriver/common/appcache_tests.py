@@ -21,18 +21,18 @@ from selenium.common.exceptions import WebDriverException
 from selenium.webdriver.common.html5.application_cache import ApplicationCache
 
 
-class TestAppCache(object):
+@pytest.mark.xfail_chrome
+@pytest.mark.xfail_chromiumedge
+@pytest.mark.xfail_firefox(raises=WebDriverException)
+@pytest.mark.xfail_remote
+@pytest.mark.xfail_safari
+def testWeCanGetTheStatusOfTheAppCache(driver, pages):
+    pages.load('html5Page')
+    driver.implicitly_wait(2)
+    app_cache = driver.application_cache
 
-    @pytest.mark.xfail_chrome
-    @pytest.mark.xfail_marionette(raises=WebDriverException)
-    @pytest.mark.xfail_phantomjs(raises=WebDriverException)
-    def testWeCanGetTheStatusOfTheAppCache(self, driver, pages):
-        pages.load('html5Page')
-        driver.implicitly_wait(2)
-        app_cache = driver.application_cache
-
+    status = app_cache.status
+    while status == ApplicationCache.DOWNLOADING:
         status = app_cache.status
-        while status == ApplicationCache.DOWNLOADING:
-            status = app_cache.status
 
-        assert ApplicationCache.UNCACHED == app_cache.status
+    assert ApplicationCache.UNCACHED == app_cache.status

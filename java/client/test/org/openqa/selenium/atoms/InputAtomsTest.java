@@ -17,7 +17,7 @@
 
 package org.openqa.selenium.atoms;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 import net.sourceforge.htmlunit.corejs.javascript.Context;
 import net.sourceforge.htmlunit.corejs.javascript.ContextAction;
@@ -25,24 +25,20 @@ import net.sourceforge.htmlunit.corejs.javascript.ContextFactory;
 import net.sourceforge.htmlunit.corejs.javascript.ScriptableObject;
 
 import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.JUnit4;
 
 import java.io.IOException;
 
 /**
  * Sanity tests against the //javascript/webdriver/atoms:inputs target.
  */
-@RunWith(JUnit4.class)
 public class InputAtomsTest {
 
   private static final String RESOURCE_PATH = "/org/openqa/selenium/atoms/atoms_inputs.js";
-  private static final String RESOURCE_TASK = "//javascript/webdriver/atoms:inputs";
 
   @Test
   public void exportsTheExpectedNames() throws IOException {
-    final String source = JavaScriptLoader.loadResource(RESOURCE_PATH, RESOURCE_TASK);
-    ContextFactory.getGlobal().call(new ContextAction() {
+    final String source = JavaScriptLoader.loadResource(RESOURCE_PATH);
+    ContextFactory.getGlobal().call(new ContextAction<Object>() {
       private ScriptableObject global;
 
       @Override
@@ -50,12 +46,12 @@ public class InputAtomsTest {
         global = context.initStandardObjects();
 
         // Check assumptions abut the global context, which the atoms assumes is a DOM window.
-        assertEquals(global, eval(context, "this.window=this;"));
-        assertEquals(global, eval(context, "this"));
-        assertEquals(global, eval(context, "window"));
-        assertEquals(true, eval(context, "this === window"));
+        assertThat(eval(context, "this.window=this;")).isEqualTo(global);
+        assertThat(eval(context, "this")).isEqualTo(global);
+        assertThat(eval(context, "window")).isEqualTo(global);
+        assertThat(eval(context, "this === window")).isEqualTo(true);
 
-        eval(context, source, JavaScriptLoader.taskToBuildOutput(RESOURCE_TASK));
+        eval(context, source, RESOURCE_PATH);
 
         assertFunction(context, "webdriver.atoms.inputs.sendKeys");
         assertFunction(context, "webdriver.atoms.inputs.click");
@@ -69,20 +65,15 @@ public class InputAtomsTest {
       }
 
       private void assertFunction(Context context, String property) {
-        assertEquals(
-            "Expected " + property + " to be a function",
-            "function",
-            eval(context, "typeof " + property));
+        assertThat(eval(context, "typeof " + property)).describedAs(property).isEqualTo("function");
       }
 
-      @SuppressWarnings({"unchecked"})
-      private <T> T eval(Context context, String script) {
-        return (T) eval(context, script, "");
+      private Object eval(Context context, String script) {
+        return eval(context, script, "");
       }
 
-      @SuppressWarnings({"unchecked"})
-      private <T> T eval(Context context, String script, String src) {
-        return (T) context.evaluateString(global, script, src, 1, null);
+      private Object eval(Context context, String script, String src) {
+        return context.evaluateString(global, script, src, 1, null);
       }
     });
   }

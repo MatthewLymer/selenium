@@ -15,7 +15,6 @@
 // specific language governing permissions and limitations
 // under the License.
 
-
 package org.openqa.selenium.remote.server.log;
 
 import org.openqa.selenium.remote.SessionId;
@@ -65,7 +64,7 @@ public class SessionLogsToFileRepository {
    * @param records logRecords that need to be stored
    * @throws IOException file i/o exception can occur because of a temp file created
    */
-  synchronized public void flushRecordsToLogFile(SessionId sessionId,
+  public synchronized void flushRecordsToLogFile(SessionId sessionId,
       List<LogRecord> records) throws IOException {
     LogFile logFile = sessionToLogFileMap.get(sessionId);
 
@@ -104,10 +103,7 @@ public class SessionLogsToFileRepository {
           .readObject())) {
         logRecords.add(tmpLogRecord);
       }
-    } catch (IOException ex) {
-      logFile.closeLogReader();
-      return logRecords;
-    } catch (ClassNotFoundException e) {
+    } catch (IOException | ClassNotFoundException ex) {
       logFile.closeLogReader();
       return logRecords;
     }

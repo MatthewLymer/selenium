@@ -23,13 +23,12 @@ import static org.junit.Assume.assumeNotNull;
 
 import com.google.common.base.StandardSystemProperty;
 
-import com.thoughtworks.selenium.testing.SeleniumAppServer;
-
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import org.openqa.selenium.environment.webserver.AppServer;
-import org.openqa.selenium.os.CommandLine;
+import org.openqa.selenium.environment.webserver.JettyAppServer;
+import org.openqa.selenium.os.ExecutableFinder;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -48,11 +47,11 @@ public class CoreSelfTest {
 
     switch (browser) {
       case "*firefox":
-        assumeNotNull(CommandLine.find("geckodriver"));
+        assumeNotNull(new ExecutableFinder().find("geckodriver"));
         break;
 
       case "*googlechrome":
-        assumeNotNull(CommandLine.find("chromedriver"));
+        assumeNotNull(new ExecutableFinder().find("chromedriver"));
         break;
 
       default:
@@ -62,7 +61,7 @@ public class CoreSelfTest {
 
   @Before
   public void startTestServer() {
-    server = new SeleniumAppServer();
+    server = new JettyAppServer();
     server.start();
   }
 
@@ -73,7 +72,7 @@ public class CoreSelfTest {
 
   @Test
   public void executeTests() throws IOException {
-    String testBase = server.whereIs("/selenium-server/tests");
+    String testBase = server.whereIs("/common/rc/tests");
     Path outputFile = Paths.get(StandardSystemProperty.JAVA_IO_TMPDIR.value())
       .resolve("core-test-suite" + browser.replace('*', '-') + ".html");
     if (Files.exists(outputFile)) {
@@ -84,6 +83,7 @@ public class CoreSelfTest {
     String result = new HTMLLauncher()
       .runHTMLSuite(
         browser,
+        // We need to do this because the path relativizing code in java.net.URL is
         // We need to do this because the path relativizing code in java.net.URL is
         // clearly having a bad day. "/selenium-server/tests" appended to "../tests/"
         // ends up as "/tests" rather than "/selenium-server/tests" as you'd expect.

@@ -22,6 +22,8 @@ try:
 except NameError:  # Python 3.x
     basestring = str
 
+from selenium.webdriver.common.by import By
+from selenium.webdriver.common.desired_capabilities import DesiredCapabilities
 from selenium.webdriver.firefox.firefox_binary import FirefoxBinary
 from selenium.webdriver.firefox.firefox_profile import FirefoxProfile
 from selenium.webdriver.firefox.options import Log, Options
@@ -29,20 +31,21 @@ from selenium.webdriver.firefox.options import Log, Options
 
 @pytest.fixture
 def driver_kwargs(driver_kwargs):
-    driver_kwargs['firefox_options'] = Options()
+    driver_kwargs['options'] = Options()
     return driver_kwargs
 
 
 class TestIntegration(object):
     def test_we_can_pass_options(self, driver, pages):
         pages.load("formPage.html")
-        driver.find_element_by_id("cheese")
+        driver.find_element(By.ID, "cheese")
 
 
 class TestUnit(object):
     def test_ctor(self):
         opts = Options()
         assert opts._binary is None
+        assert opts._preferences == {}
         assert opts._profile is None
         assert opts._arguments == []
         assert isinstance(opts.log, Log)
@@ -60,6 +63,19 @@ class TestUnit(object):
         opts.binary = path
         assert isinstance(opts.binary, FirefoxBinary)
         assert opts.binary._start_cmd == path
+
+    def test_prefs(self):
+        opts = Options()
+        assert len(opts.preferences) == 0
+        assert isinstance(opts.preferences, dict)
+
+        opts.set_preference("spam", "ham")
+        assert len(opts.preferences) == 1
+        opts.set_preference("eggs", True)
+        assert len(opts.preferences) == 2
+        opts.set_preference("spam", "spam")
+        assert len(opts.preferences) == 2
+        assert opts.preferences == {"spam": "spam", "eggs": True}
 
     def test_profile(self, tmpdir_factory):
         opts = Options()
@@ -85,7 +101,9 @@ class TestUnit(object):
 
     def test_to_capabilities(self):
         opts = Options()
-        assert opts.to_capabilities() == {}
+        firefox_caps = DesiredCapabilities.FIREFOX.copy()
+        firefox_caps.update({"pageLoadStrategy": "normal"})
+        assert opts.to_capabilities() == firefox_caps
 
         profile = FirefoxProfile()
         opts.profile = profile
@@ -108,3 +126,10 @@ class TestUnit(object):
         assert "binary" in caps["moz:firefoxOptions"]
         assert isinstance(caps["moz:firefoxOptions"]["binary"], basestring)
         assert caps["moz:firefoxOptions"]["binary"] == binary._start_cmd
+
+        opts.set_preference("spam", "ham")
+        caps = opts.to_capabilities()
+        assert "moz:firefoxOptions" in caps
+        assert "prefs" in caps["moz:firefoxOptions"]
+        assert isinstance(caps["moz:firefoxOptions"]["prefs"], dict)
+        assert caps["moz:firefoxOptions"]["prefs"]["spam"] == "ham"

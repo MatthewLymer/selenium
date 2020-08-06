@@ -1,5 +1,5 @@
-# encoding: utf-8
-#
+# frozen_string_literal: true
+
 # Licensed to the Software Freedom Conservancy (SFC) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -17,18 +17,30 @@
 # specific language governing permissions and limitations
 # under the License.
 
-require 'websocket'
-require 'pathname'
-
 module Selenium
   module WebDriver
     module Safari
-      MISSING_TEXT = <<-ERROR.tr("\n", '').freeze
-        Unable to find Apple's safaridriver which comes with Safari 10.
-        More info at https://webkit.org/blog/6900/webdriver-support-in-safari-10/
-      ERROR
+      autoload :Bridge, 'selenium/webdriver/safari/bridge'
+      autoload :Driver, 'selenium/webdriver/safari/driver'
+      autoload :Options, 'selenium/webdriver/safari/options'
+      autoload :Service, 'selenium/webdriver/safari/service'
 
       class << self
+        attr_accessor :use_technology_preview
+
+        def technology_preview
+          "/Applications/Safari\ Technology\ Preview.app/Contents/MacOS/safaridriver"
+        end
+
+        def technology_preview!
+          Service.driver_path = technology_preview
+          @use_technology_preview = true
+        end
+
+        def technology_preview?
+          use_technology_preview
+        end
+
         def path=(path)
           Platform.assert_executable(path)
           @path = path
@@ -37,28 +49,25 @@ module Selenium
         def path
           @path ||= '/Applications/Safari.app/Contents/MacOS/Safari'
           return @path if File.file?(@path) && File.executable?(@path)
-          raise Error::WebDriverError, 'Safari is only supported on Mac' unless Platform.os == :macosx
+          raise Error::WebDriverError, 'Safari is only supported on Mac' unless Platform.os.mac?
+
           raise Error::WebDriverError, 'Unable to find Safari'
         end
 
-        def resource_path
-          @resource_path ||= Pathname.new(File.expand_path('../safari/resources', __FILE__))
-        end
-
         def driver_path=(path)
-          Platform.assert_executable path
-          @driver_path = path
+          WebDriver.logger.deprecate 'Selenium::WebDriver::Safari#driver_path=',
+                                     'Selenium::WebDriver::Safari::Service#driver_path=',
+                                     id: :driver_path
+          Selenium::WebDriver::Safari::Service.driver_path = path
         end
 
         def driver_path
-          @driver_path ||= '/usr/bin/safaridriver'
-          return @driver_path if File.file?(@driver_path) && File.executable?(@driver_path)
-          raise Error::WebDriverError, MISSING_TEXT
+          WebDriver.logger.deprecate 'Selenium::WebDriver::Safari#driver_path',
+                                     'Selenium::WebDriver::Safari::Service#driver_path',
+                                     id: :driver_path
+          Selenium::WebDriver::Safari::Service.driver_path
         end
       end
     end # Safari
   end # WebDriver
 end # Selenium
-
-require 'selenium/webdriver/safari/bridge'
-require 'selenium/webdriver/safari/service'

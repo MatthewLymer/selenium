@@ -17,85 +17,203 @@
 
 package org.openqa.selenium.firefox;
 
-import static com.google.common.base.Preconditions.checkNotNull;
-import static org.openqa.selenium.firefox.FirefoxDriver.BINARY;
-import static org.openqa.selenium.firefox.FirefoxDriver.PROFILE;
+import static java.util.Collections.singletonMap;
+import static java.util.Collections.unmodifiableList;
+import static java.util.Collections.unmodifiableMap;
+import static org.openqa.selenium.firefox.FirefoxDriver.Capability.BINARY;
+import static org.openqa.selenium.firefox.FirefoxDriver.Capability.MARIONETTE;
+import static org.openqa.selenium.firefox.FirefoxDriver.Capability.PROFILE;
 
-import com.google.common.base.Preconditions;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
-import com.google.gson.JsonArray;
-import com.google.gson.JsonElement;
-import com.google.gson.JsonObject;
-import com.google.gson.JsonPrimitive;
+import com.google.common.collect.ImmutableSortedMap;
 
-import org.openqa.selenium.logging.LogLevelMapping;
-import org.openqa.selenium.remote.DesiredCapabilities;
+import org.openqa.selenium.internal.Require;
+import org.openqa.selenium.remote.AbstractDriverOptions;
+import org.openqa.selenium.Capabilities;
+import org.openqa.selenium.WebDriverException;
+import org.openqa.selenium.remote.BrowserType;
+import org.openqa.selenium.remote.CapabilityType;
 
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.logging.Level;
-
+import java.util.Objects;
+import java.util.Optional;
 
 /**
- * Manage firefox specific settings in a way that geckodriver can understand. Use {@link
- * #addTo(DesiredCapabilities)} to also add settings to a {@link DesiredCapabilities} object.
+ * Manage firefox specific settings in a way that geckodriver can understand.
  * <p>
  * An example of usage:
  * <pre>
- *    DesiredCapabilities caps = new FirefoxOptions()
+ *    FirefoxOptions options = new FirefoxOptions()
  *      .addPreference("browser.startup.page", 1)
- *      .addPreference("browser.startup.homepage", "https://www.google.co.uk")
- *      .addTo(DesiredCapabilities.firefox());
- *    WebDriver driver = new FirefoxDriver(caps);
+ *      .addPreference("browser.startup.homepage", "https://www.google.co.uk");
+ *    WebDriver driver = new FirefoxDriver(options);
  * </pre>
  */
-public class FirefoxOptions {
+public class FirefoxOptions extends AbstractDriverOptions<FirefoxOptions> {
 
-  public final static String FIREFOX_OPTIONS = "moz:firefoxOptions";
-  // TODO(simons): remove once geckodriver 0.12 ships
-  public final static String OLD_FIREFOX_OPTIONS = "firefoxOptions";
+  public static final String FIREFOX_OPTIONS = "moz:firefoxOptions";
 
-  private String binary;
-  private FirefoxProfile profile;
   private List<String> args = new ArrayList<>();
-  private Map<String, Boolean> booleanPrefs = new HashMap<>();
-  private Map<String, Integer> intPrefs = new HashMap<>();
-  private Map<String, String> stringPrefs = new HashMap<>();
-  private Level logLevel = null;
+  private Map<String, Object> preferences = new HashMap<>();
+  private FirefoxDriverLogLevel logLevel;
+  private Binary binary;
+  private boolean legacy;
+  private FirefoxProfile profile;
 
-  public FirefoxOptions setBinary(Path path) {
-    return setBinary(checkNotNull(path).toString());
+  public FirefoxOptions() {
+    // Read system properties and use those if they are set, allowing users to override them later
+    // should they want to.
+
+    String binary = System.getProperty(FirefoxDriver.SystemProperty.BROWSER_BINARY);
+    if (binary != null) {
+      setBinary(binary);
+    }
+
+    String profileName = System.getProperty(FirefoxDriver.SystemProperty.BROWSER_PROFILE);
+    if (profileName != null) {
+      FirefoxProfile profile = new ProfilesIni().getProfile(profileName);
+      if (profile == null) {
+        throw new WebDriverException(String.format(
+            "Firefox profile '%s' named in system property '%s' not found",
+            profileName, FirefoxDriver.SystemProperty.BROWSER_PROFILE));
+      }
+      setProfile(profile);
+    }
+
+    String forceMarionette = System.getProperty(FirefoxDriver.SystemProperty.DRIVER_USE_MARIONETTE);
+    if (forceMarionette != null) {
+      setLegacy(!Boolean.getBoolean(FirefoxDriver.SystemProperty.DRIVER_USE_MARIONETTE));
+    }
+
+    setCapability(CapabilityType.BROWSER_NAME, BrowserType.FIREFOX);
+    setAcceptInsecureCerts(true);
   }
 
-  public FirefoxOptions setBinary(String binary) {
-    this.binary = checkNotNull(binary);
+  public FirefoxOptions(Capabilities source) {
+    // We need to initialize all our own fields before calling.
+    super();
+    source.asMap().forEach((key, value)-> {
+      if (value != null) {
+        setCapability(key, value);
+      }
+    });
+
+    // If `source` has options, we need to mirror those into this instance. This may be either a
+    // Map (if we're constructing from a serialized instance) or another FirefoxOptions. *sigh*
+    Object raw = source.getCapability(FIREFOX_OPTIONS);
+    if (raw == null) {
+      return;
+    }
+
+    if (raw instanceof FirefoxOptions) {
+      FirefoxOptions that = (FirefoxOptions) raw;
+
+      addArguments(that.args);
+      that.preferences.forEach(this::addPreference);
+      setLegacy(that.legacy);
+
+      if (that.logLevel != null) { setLogLevel(that.logLevel); }
+      if (that.binary != null) { setCapability(BINARY, that.binary.asCapability()); }
+
+      if (that.profile != null) { setProfile(that.profile); }
+    } else if (raw instanceof Map) {
+      Map<?, ?> that = (Map<?, ?>) raw;
+      if (that.containsKey("args")) {
+        Object value = that.get("args");
+        if (value instanceof String) {
+          addArguments((String) that.get("args"));
+        } else if (value instanceof List<?>) {
+          addArguments((List<String>) that.get("args"));
+        } else {
+          // last resort
+          addArguments(that.get("args").toString());
+        }
+      }
+      if (that.containsKey("prefs")) {
+        Map<String, Object> prefs = (Map<String, Object>) that.get("prefs");
+        preferences.putAll(prefs);
+      }
+      if (that.containsKey("binary")) { setBinary((String) that.get("binary")); }
+      if (that.containsKey("log")) {
+        Map<?, ?> logStruct = (Map<?, ?>) that.get("log");
+        Object rawLevel = logStruct.get("level");
+        if (rawLevel instanceof String) {
+          setLogLevel(FirefoxDriverLogLevel.fromString((String) rawLevel));
+        } else if (rawLevel instanceof FirefoxDriverLogLevel) {
+          setLogLevel((FirefoxDriverLogLevel) rawLevel);
+        }
+      }
+      if (that.containsKey("profile")) {
+        Object value = that.get("profile");
+        if (value instanceof String) {
+          try {
+            setProfile(FirefoxProfile.fromJson((String) value));
+          } catch (IOException e) {
+            throw new WebDriverException(e);
+          }
+        } else if (value instanceof FirefoxProfile) {
+          setProfile((FirefoxProfile) value);
+        } else {
+          throw new WebDriverException(
+              "In FirefoxOptions, don't know how to convert profile: " + that);
+        }
+      }
+    }
+  }
+
+  public FirefoxOptions setLegacy(boolean legacy) {
+    setCapability(MARIONETTE, !legacy);
     return this;
+  }
+
+  public boolean isLegacy() {
+    return legacy;
+  }
+
+  public FirefoxOptions setBinary(FirefoxBinary binary) {
+    setCapability(BINARY, binary);
+    return this;
+  }
+
+  public FirefoxOptions setBinary(Path path) {
+    setCapability(BINARY, path);
+    return this;
+  }
+
+  public FirefoxOptions setBinary(String path) {
+    setCapability(BINARY, path);
+    return this;
+  }
+
+  /**
+   * Constructs a {@link FirefoxBinary} and returns that to be used, and because of this is only
+   * useful when actually starting firefox.
+   */
+  public FirefoxBinary getBinary() {
+    return getBinaryOrNull().orElseGet(FirefoxBinary::new);
+  }
+
+  public Optional<FirefoxBinary> getBinaryOrNull() {
+    return Optional.ofNullable(binary).map(Binary::asBinary);
   }
 
   public FirefoxOptions setProfile(FirefoxProfile profile) {
-    this.profile = checkNotNull(profile);
+    setCapability(FirefoxDriver.Capability.PROFILE, profile);
     return this;
   }
 
-  // Confusing API. Keeping package visible only
-  FirefoxOptions setProfileSafely(FirefoxProfile profile) {
-    Preconditions.checkState(
-      this.profile == null || this.profile.equals(profile),
-      "Profile passed to options is different from existing profile that has been set.");
-    if (profile == null) {
-      return this;
-    }
-    return setProfile(profile);
+  public FirefoxProfile getProfile() {
+    return profile;
   }
 
   public FirefoxOptions addArguments(String... arguments) {
-    addArguments(ImmutableList.copyOf(arguments));
+    addArguments(Arrays.asList(arguments));
     return this;
   }
 
@@ -104,137 +222,156 @@ public class FirefoxOptions {
     return this;
   }
 
-  public FirefoxOptions addPreference(String key, boolean value) {
-    booleanPrefs.put(checkNotNull(key), value);
+  public FirefoxOptions addPreference(String key, Object value) {
+    preferences.put(Require.nonNull("Key", key), value);
     return this;
   }
 
-  public FirefoxOptions addPreference(String key, int value) {
-    intPrefs.put(checkNotNull(key), value);
+  public FirefoxOptions setLogLevel(FirefoxDriverLogLevel logLevel) {
+    this.logLevel = Require.nonNull("Log level", logLevel);
     return this;
   }
 
-  public FirefoxOptions addPreference(String key, String value) {
-    stringPrefs.put(checkNotNull(key), checkNotNull(value));
-    return this;
-  }
-
-  public FirefoxOptions setLogLevel(Level logLevel) {
-    this.logLevel = logLevel;
-    return this;
-  }
-
-  public DesiredCapabilities addTo(DesiredCapabilities capabilities) {
-    Object priorBinary = capabilities.getCapability(BINARY);
-    if (binary != null && priorBinary != null && !binary.equals(priorBinary)) {
-      throw new IllegalStateException(
-        "Binary already set in capabilities, but is different from the one in these options");
+  public FirefoxOptions setHeadless(boolean headless) {
+    args.remove("-headless");
+    if (headless) {
+      args.add("-headless");
     }
+    return this;
+  }
 
-    Object priorProfile = capabilities.getCapability(PROFILE);
-    if (priorProfile != null) {
-      if (!booleanPrefs.isEmpty() || !intPrefs.isEmpty() || !stringPrefs.isEmpty()) {
-        throw new IllegalStateException(
-          "Unable to determine if preferences set on this option " +
-          "are the same as the profile in the capabilities");
-      }
-      if (!priorProfile.equals(profile)) {
-        throw new IllegalStateException(
-          "Profile has been set on both the capabilities and these options, but they're " +
-          "different. Unable to determine which one you want to use.");
-      }
+  @Override
+  public void setCapability(String key, Object value) {
+    switch (key) {
+      case BINARY:
+        binary = new Binary(Require.nonNull("Binary value", value));
+        value = binary.asCapability();
+        break;
+
+      case MARIONETTE:
+        if (value instanceof Boolean) {
+          legacy = !(Boolean) value;
+        }
+        break;
+
+      case PROFILE:
+        if (value instanceof FirefoxProfile) {
+          profile = (FirefoxProfile) value;
+        } else if (value instanceof String) {
+          try {
+            profile = FirefoxProfile.fromJson((String) value);
+          } catch (IOException e) {
+            throw new WebDriverException(e);
+          }
+          value = profile;
+        } else {
+          throw new WebDriverException("Unexpected value for profile: " + value);
+        }
+        break;
+
+      default:
+        // Do nothing
     }
+    super.setCapability(key, value);
+  }
 
-    capabilities.setCapability(FIREFOX_OPTIONS, this);
-    capabilities.setCapability(OLD_FIREFOX_OPTIONS, this);
+  @Override
+  public Map<String, Object> asMap() {
+    Map<String, Object> toReturn = new HashMap<>(super.asMap());
+
+    ImmutableSortedMap.Builder<String, Object> w3cOptions = ImmutableSortedMap.naturalOrder();
+    w3cOptions.put("args", unmodifiableList(new ArrayList<>(args)));
 
     if (binary != null) {
-      FirefoxBinary actualBinary = new FirefoxBinary(new File(binary));
-      actualBinary.addCommandLineOptions(args.toArray(new String[args.size()]));
-      capabilities.setCapability(BINARY, actualBinary);
-    }
-
-    if (profile != null) {
-      capabilities.setCapability(PROFILE, profile);
-    }
-
-    return capabilities;
-  }
-
-  public JsonElement toJson() throws IOException {
-    JsonObject options = new JsonObject();
-
-    if (binary != null) {
-      options.addProperty("binary", binary);
-    }
-
-    if (profile != null) {
-      for (Map.Entry<String, Boolean> pref : booleanPrefs.entrySet()) {
-        profile.setPreference(pref.getKey(), pref.getValue());
-      }
-      for (Map.Entry<String, Integer> pref : intPrefs.entrySet()) {
-        profile.setPreference(pref.getKey(), pref.getValue());
-      }
-      for (Map.Entry<String, String> pref : stringPrefs.entrySet()) {
-        profile.setPreference(pref.getKey(), pref.getValue());
-      }
-      options.addProperty("profile", profile.toJson());
-    } else {
-      JsonObject allPrefs = new JsonObject();
-      for (Map.Entry<String, Boolean> pref : booleanPrefs.entrySet()) {
-        allPrefs.add(pref.getKey(), new JsonPrimitive(pref.getValue()));
-      }
-      for (Map.Entry<String, Integer> pref : intPrefs.entrySet()) {
-        allPrefs.add(pref.getKey(), new JsonPrimitive(pref.getValue()));
-      }
-      for (Map.Entry<String, String> pref : stringPrefs.entrySet()) {
-        allPrefs.add(pref.getKey(), new JsonPrimitive(pref.getValue()));
-      }
-      options.add("prefs", allPrefs);
+      w3cOptions.put("binary", binary.asPath());
     }
 
     if (logLevel != null) {
-      JsonObject level = new JsonObject();
-      level.add("level", new JsonPrimitive(logLevelToGeckoLevel()));
-      options.add("log", level);
+      w3cOptions.put("log", singletonMap("level", logLevel));
     }
 
-    JsonArray arguments = new JsonArray();
-    for (String arg : args) {
-      arguments.add(new JsonPrimitive(arg));
+    if (profile != null) {
+      preferences.forEach(profile::setPreference);
+      try {
+        w3cOptions.put("profile", profile.toJson());
+      } catch (IOException e) {
+        throw new WebDriverException(e);
+      }
+    } else {
+      w3cOptions.put("prefs", unmodifiableMap(new HashMap<>(preferences)));
     }
-    options.add("args", arguments);
 
-    return options;
+    toReturn.put(FIREFOX_OPTIONS, w3cOptions.build());
+
+    return unmodifiableMap(toReturn);
   }
 
-  private String logLevelToGeckoLevel() {
-    // levels defined by GeckoDriver
-    // https://github.com/mozilla/geckodriver#log-object
-    if (logLevel.intValue() < Level.FINE.intValue()) {
-      return "trace";
-    }
-    if (logLevel == Level.FINE) {
-      return "debug";
-    }
-    if (logLevel == Level.CONFIG) {
-      return "config";
-    }
-    if (logLevel == Level.INFO) {
-      return "info";
-    }
-    if (logLevel == Level.WARNING) {
-      return "warn";
-    }
-    if (logLevel == Level.SEVERE) {
-      return "error";
-    }
-    if (logLevel == Level.OFF) {
-      return "fatal";
-    }
-
-    // something else?  ¯\_(ツ)_/¯
-    return "debug";
+  @Override
+  public FirefoxOptions merge(Capabilities capabilities) {
+    super.merge(capabilities);
+    return this;
   }
 
+  @Override
+  protected int amendHashCode() {
+    return Objects.hash(
+        args,
+        preferences,
+        logLevel,
+        binary,
+        legacy,
+        profile);
+  }
+
+  private class Binary {
+    private String path;
+    private FirefoxBinary binary;
+
+    public Binary(Object value) {
+      if (value instanceof FirefoxBinary) {
+        this.binary = (FirefoxBinary) value;
+        binary.amendOptions(FirefoxOptions.this);
+        return;
+      }
+
+      if (value instanceof Path || value instanceof String) {
+        this.path = value.toString().replace('\\', '/');
+        return;
+      }
+
+      throw new IllegalArgumentException("Unrecognised type for binary: " + value);
+    }
+
+    FirefoxBinary asBinary() {
+      return binary == null ? new FirefoxBinary(new File(path)) : binary;
+    }
+
+    Object asCapability() {
+      return binary == null ? path : binary;
+    }
+
+    String asPath() {
+      return binary == null ? path : binary.getPath();
+    }
+
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) {
+        return true;
+      }
+
+      if (!(o instanceof Binary)) {
+        return false;
+      }
+
+      Binary that = (Binary) o;
+      return Objects.equals(this.path, that.path) &&
+             Objects.equals(this.binary, that.binary);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(path, binary);
+    }
+  }
 }

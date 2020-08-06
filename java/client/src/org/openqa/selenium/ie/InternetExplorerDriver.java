@@ -18,12 +18,9 @@
 package org.openqa.selenium.ie;
 
 import org.openqa.selenium.Capabilities;
-import org.openqa.selenium.OutputType;
 import org.openqa.selenium.Platform;
 import org.openqa.selenium.WebDriverException;
 import org.openqa.selenium.remote.CapabilityType;
-import org.openqa.selenium.remote.DesiredCapabilities;
-import org.openqa.selenium.remote.DriverCommand;
 import org.openqa.selenium.remote.FileDetector;
 import org.openqa.selenium.remote.RemoteWebDriver;
 import org.openqa.selenium.remote.service.DriverCommandExecutor;
@@ -35,141 +32,150 @@ public class InternetExplorerDriver extends RemoteWebDriver {
   /**
    * Capability that defines whether to ignore the browser zoom level or not.
    */
-  public final static String IGNORE_ZOOM_SETTING = "ignoreZoomSetting";
+  public static final String IGNORE_ZOOM_SETTING = "ignoreZoomSetting";
 
   /**
    * Capability that defines to use whether to use native or javascript events during operations.
    */
-  public final static String NATIVE_EVENTS = CapabilityType.HAS_NATIVE_EVENTS;
+  public static final String NATIVE_EVENTS = CapabilityType.HAS_NATIVE_EVENTS;
 
   /**
    * Capability that defines the initial URL to be used when IE is launched.
    */
-  public final static String INITIAL_BROWSER_URL = "initialBrowserUrl";
+  public static final String INITIAL_BROWSER_URL = "initialBrowserUrl";
 
   /**
    * Capability that defines how elements are scrolled into view in the InternetExplorerDriver.
    */
-  public final static String ELEMENT_SCROLL_BEHAVIOR = CapabilityType.ELEMENT_SCROLL_BEHAVIOR;
+  public static final String ELEMENT_SCROLL_BEHAVIOR = CapabilityType.ELEMENT_SCROLL_BEHAVIOR;
 
   /**
    * Capability that defines which behaviour will be used if an unexpected Alert is found.
    */
-  public final static String UNEXPECTED_ALERT_BEHAVIOR = CapabilityType.UNEXPECTED_ALERT_BEHAVIOUR;
+  public static final String UNEXPECTED_ALERT_BEHAVIOR = CapabilityType.UNEXPECTED_ALERT_BEHAVIOUR;
 
   /**
    * Capability that defines to use or not cleanup of element cache on document loading.
    */
-  public final static String ENABLE_ELEMENT_CACHE_CLEANUP = "enableElementCacheCleanup";
+  public static final String ENABLE_ELEMENT_CACHE_CLEANUP = "enableElementCacheCleanup";
 
   /**
    * Capability that defines timeout in milliseconds for attaching to new browser window.
    */
-  public final static String BROWSER_ATTACH_TIMEOUT = "browserAttachTimeout";
+  public static final String BROWSER_ATTACH_TIMEOUT = "browserAttachTimeout";
 
   /**
-   * Capability that defines to ignore ot not browser
+   * Capability that defines to ignore browser
    * protected mode settings during starting by IEDriverServer.
    *
    * Setting this capability will make your tests unstable and hard to debug.
    */
-  public final static String INTRODUCE_FLAKINESS_BY_IGNORING_SECURITY_DOMAINS =
+  public static final String INTRODUCE_FLAKINESS_BY_IGNORING_SECURITY_DOMAINS =
       "ignoreProtectedModeSettings";
 
   /**
    * Capability that defines to use persistent hovering or not.
    */
-  public final static String ENABLE_PERSISTENT_HOVERING = "enablePersistentHover";
+  public static final String ENABLE_PERSISTENT_HOVERING = "enablePersistentHover";
 
   /**
    * Capability that defines to focus to browser window or not before operation.
    */
-  public final static String REQUIRE_WINDOW_FOCUS = "requireWindowFocus";
+  public static final String REQUIRE_WINDOW_FOCUS = "requireWindowFocus";
 
   /**
    * Capability that defines the location of the file where IEDriverServer
    * should write log messages to.
    */
-  public final static String LOG_FILE = "logFile";
+  public static final String LOG_FILE = "logFile";
 
   /**
    * Capability that defines the detalization level the IEDriverServer logs.
    */
-  public final static String LOG_LEVEL = "logLevel";
+  public static final String LOG_LEVEL = "logLevel";
 
   /**
    * Capability that defines the address of the host adapter on which
    * the IEDriverServer will listen for commands.
    */
-  public final static String HOST = "host";
+  public static final String HOST = "host";
 
   /**
    * Capability that defines full path to directory to which will be
    * extracted supporting files of the IEDriverServer.
    */
-  public final static String EXTRACT_PATH = "extractPath";
+  public static final String EXTRACT_PATH = "extractPath";
 
   /**
    * Capability that defines suppress or not diagnostic output of the IEDriverServer.
    */
-  public final static String SILENT = "silent";
+  public static final String SILENT = "silent";
 
   /**
    * Capability that defines launch API of IE used by IEDriverServer.
    */
-  public final static String FORCE_CREATE_PROCESS = "ie.forceCreateProcessApi";
+  public static final String FORCE_CREATE_PROCESS = "ie.forceCreateProcessApi";
 
   /**
    * Capability that defines to clean or not browser cache before launching IE by IEDriverServer.
    */
-  public final static String IE_ENSURE_CLEAN_SESSION = "ie.ensureCleanSession";
+  public static final String IE_ENSURE_CLEAN_SESSION = "ie.ensureCleanSession";
 
   /**
    * Capability that defines setting the proxy information for a single IE process
    * without affecting the proxy settings of other instances of IE.
    */
-  public final static String IE_USE_PRE_PROCESS_PROXY = "ie.usePerProcessProxy";
+  public static final String IE_USE_PER_PROCESS_PROXY = "ie.usePerProcessProxy";
+
+  /**
+   * @deprecated Use {@link #IE_USE_PER_PROCESS_PROXY} (the one without the typo);
+   */
+  @Deprecated
+  public static final String IE_USE_PRE_PROCESS_PROXY = IE_USE_PER_PROCESS_PROXY;
 
   /**
    * Capability that defines used IE CLI switches when {@link #FORCE_CREATE_PROCESS} is enabled.
    */
-  public final static String IE_SWITCHES = "ie.browserCommandLineSwitches";
-
-  /**
-   * Port which is used by default.
-   */
-  private final static int DEFAULT_PORT = 0;
+  public static final String IE_SWITCHES = "ie.browserCommandLineSwitches";
 
   public InternetExplorerDriver() {
-    this(null, null, DEFAULT_PORT);
+    this(null, null);
   }
 
+  /**
+   * @deprecated Use {@link #InternetExplorerDriver(InternetExplorerOptions)}
+   */
+  @Deprecated
   public InternetExplorerDriver(Capabilities capabilities) {
-    this(null, capabilities, DEFAULT_PORT);
+    this(null, capabilities);
   }
 
-  public InternetExplorerDriver(int port) {
-    this(null, null, port);
+  public InternetExplorerDriver(InternetExplorerOptions options) {
+    this(null, options);
   }
 
   public InternetExplorerDriver(InternetExplorerDriverService service) {
-    this(service, null, DEFAULT_PORT);
+    this(service, null);
   }
 
+  /**
+   * @deprecated Use {@link #InternetExplorerDriver(InternetExplorerDriverService, InternetExplorerOptions)}
+   */
+  @Deprecated
   public InternetExplorerDriver(InternetExplorerDriverService service, Capabilities capabilities) {
-    this(service, capabilities, DEFAULT_PORT);
+    this(service, new InternetExplorerOptions(capabilities));
   }
 
-  public InternetExplorerDriver(InternetExplorerDriverService service, Capabilities capabilities,
-      int port) {
-    if (capabilities == null) {
-      capabilities = DesiredCapabilities.internetExplorer();
+  public InternetExplorerDriver(
+      InternetExplorerDriverService service,
+      InternetExplorerOptions options) {
+    if (options == null) {
+      options = new InternetExplorerOptions();
     }
-
     if (service == null) {
-      service = setupService(capabilities, port);
+      service = setupService(options);
     }
-    run(service, capabilities);
+    run(service, options);
   }
 
   private void run(InternetExplorerDriverService service, Capabilities capabilities) {
@@ -187,14 +193,6 @@ public class InternetExplorerDriver extends RemoteWebDriver {
         "via RemoteWebDriver");
   }
 
-  public <X> X getScreenshotAs(OutputType<X> target) {
-    // Get the screenshot as base64.
-    String base64 = execute(DriverCommand.SCREENSHOT).getValue().toString();
-
-    // ... and convert it.
-    return target.convertFromBase64Png(base64);
-  }
-
   protected void assertOnWindows() {
     Platform current = Platform.getCurrent();
     if (!current.is(Platform.WINDOWS)) {
@@ -204,9 +202,8 @@ public class InternetExplorerDriver extends RemoteWebDriver {
     }
   }
 
-  private InternetExplorerDriverService setupService(Capabilities caps, int port) {
+  private InternetExplorerDriverService setupService(Capabilities caps) {
     InternetExplorerDriverService.Builder builder = new InternetExplorerDriverService.Builder();
-    builder.usingPort(port);
 
     if (caps != null) {
       if (caps.getCapability(LOG_FILE) != null) {

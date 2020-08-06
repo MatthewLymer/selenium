@@ -15,31 +15,25 @@
 // specific language governing permissions and limitations
 // under the License.
 
-
 package org.openqa.selenium.os;
 
+import static java.util.Collections.emptyList;
+import static java.util.Collections.singletonList;
 import static org.openqa.selenium.Platform.WINDOWS;
-
-import java.io.File;
-import java.io.IOException;
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
-import java.util.Map;
 
 import org.openqa.selenium.Platform;
 
-import com.google.common.base.Charsets;
-import com.google.common.collect.ImmutableSet;
-import com.google.common.io.Files;
+import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Map;
 
-class ExecutableFinder {
-  private static final ImmutableSet<String> ENDINGS = Platform.getCurrent().is(WINDOWS) ?
-      ImmutableSet.of("", ".cmd", ".exe", ".com", ".bat") : ImmutableSet.of("");
-
-  private static final Method JDK6_CAN_EXECUTE = findJdk6CanExecuteMethod();
-
-  private final ImmutableSet.Builder<String> pathSegmentBuilder =
-      new ImmutableSet.Builder<>();
+public class ExecutableFinder {
+  private static final List<String> ENDINGS = Platform.getCurrent().is(WINDOWS) ?
+      Arrays.asList("", ".cmd", ".exe", ".com", ".bat") : singletonList("");
 
   /**
    * Find the executable by scanning the file system and the PATH. In the case of Windows this
@@ -61,12 +55,12 @@ class ExecutableFinder {
       }
     }
 
-    addPathFromEnvironment();
+    List<String> pathSegments = new ArrayList<>(fromEnvironment());
     if (Platform.getCurrent().is(Platform.MAC)) {
-      addMacSpecificPath();
+      pathSegments.addAll(macSpecificPathSegments());
     }
 
-    for (String pathSegment : pathSegmentBuilder.build()) {
+    for (String pathSegment : pathSegments) {
       for (String ending : ENDINGS) {
         file = new File(pathSegment, named + ending);
         if (canExecute(file)) {
@@ -77,7 +71,7 @@ class ExecutableFinder {
     return null;
   }
 
-  private void addPathFromEnvironment() {
+  private List<String> fromEnvironment() {
     String pathName = "PATH";
     Map<String, String> env = System.getenv();
     if (!env.containsKey(pathName)) {
@@ -89,44 +83,22 @@ class ExecutableFinder {
       }
     }
     String path = env.get(pathName);
-    if (path != null) {
-      pathSegmentBuilder.add(path.split(File.pathSeparator));
-    }
+    return path != null ? Arrays.asList(path.split(File.pathSeparator)) : emptyList();
   }
 
-  private void addMacSpecificPath() {
+  private List<String> macSpecificPathSegments() {
     File pathFile = new File("/etc/paths");
     if (pathFile.exists()) {
       try {
-        pathSegmentBuilder.addAll(Files.readLines(pathFile, Charsets.UTF_8));
+        return Files.readAllLines(pathFile.toPath());
       } catch (IOException e) {
         // Guess we won't include those, then
       }
     }
+    return emptyList();
   }
 
   private static boolean canExecute(File file) {
-    if (!file.exists() || file.isDirectory()) {
-      return false;
-    }
-
-    if (JDK6_CAN_EXECUTE != null) {
-      try {
-        return (Boolean) JDK6_CAN_EXECUTE.invoke(file);
-      } catch (IllegalAccessException e) {
-        // Do nothing
-      } catch (InvocationTargetException e) {
-        // Still do nothing
-      }
-    }
-    return true;
-  }
-
-  private static Method findJdk6CanExecuteMethod() {
-    try {
-      return File.class.getMethod("canExecute");
-    } catch (NoSuchMethodException e) {
-      return null;
-    }
+    return file.exists() && !file.isDirectory() && file.canExecute();
   }
 }

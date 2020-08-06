@@ -17,38 +17,29 @@
 
 package org.openqa.selenium.remote.html5;
 
-import org.openqa.selenium.WebDriverException;
+import org.openqa.selenium.Capabilities;
 import org.openqa.selenium.html5.LocationContext;
 import org.openqa.selenium.remote.AugmenterProvider;
 import org.openqa.selenium.remote.ExecuteMethod;
-import org.openqa.selenium.remote.InterfaceImplementation;
 
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
+import java.util.function.Predicate;
 
-public class AddLocationContext implements AugmenterProvider {
+import static org.openqa.selenium.remote.CapabilityType.SUPPORTS_LOCATION_CONTEXT;
+
+public class AddLocationContext implements AugmenterProvider<LocationContext> {
 
   @Override
-  public Class<?> getDescribedInterface() {
+  public Predicate<Capabilities> isApplicable() {
+    return caps -> caps.is(SUPPORTS_LOCATION_CONTEXT);
+  }
+
+  @Override
+  public Class<LocationContext> getDescribedInterface() {
     return LocationContext.class;
   }
 
   @Override
-  public InterfaceImplementation getImplementation(Object value) {
-    return new InterfaceImplementation() {
-
-      @Override
-      public Object invoke(ExecuteMethod executeMethod, Object self, Method method, Object... args) {
-        LocationContext context = new RemoteLocationContext(executeMethod);
-        try {
-          return method.invoke(context, args);
-        } catch (IllegalAccessException e) {
-          throw new WebDriverException(e);
-        } catch (InvocationTargetException e) {
-          throw new RuntimeException(e.getCause());
-        }
-      }
-    };
+  public LocationContext getImplementation(Capabilities capabilities, ExecuteMethod executeMethod) {
+    return new RemoteLocationContext(executeMethod);
   }
-
 }

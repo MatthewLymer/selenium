@@ -48,6 +48,7 @@ public interface JavascriptExecutor {
    * <li>For all other cases, a String is returned.</li>
    * <li>For an array, return a List&lt;Object&gt; with each object following the rules above. We
    * support nested lists.</li>
+   * <li>For a map, return a Map&lt;String, Object&gt; with values following the rules above.</li>
    * <li>Unless the value is null or there is no return value, in which null is returned</li>
    * </ul>
    *
@@ -59,7 +60,7 @@ public interface JavascriptExecutor {
    *
    * @param script The JavaScript to execute
    * @param args The arguments to the script. May be empty
-   * @return One of Boolean, Long, Double, String, List or WebElement. Or null.
+   * @return One of Boolean, Long, Double, String, List, Map or WebElement. Or null.
    */
   Object executeScript(String script, Object... args);
 
@@ -81,13 +82,14 @@ public interface JavascriptExecutor {
    * <li>For all other cases, a String is returned.</li>
    * <li>For an array, return a List&lt;Object&gt; with each object following the rules above. We
    * support nested lists.</li>
+   * <li>For a map, return a Map&lt;String, Object&gt; with values following the rules above.</li>
    * <li>Unless the value is null or there is no return value, in which null is returned</li>
    * </ul>
    *
    * <p>
    * The default timeout for a script to be executed is 0ms. In most cases, including the examples
    * below, one must set the script timeout
-   * {@link WebDriver.Timeouts#setScriptTimeout(long, java.util.concurrent.TimeUnit)}  beforehand
+   * {@link WebDriver.Timeouts#setScriptTimeout(java.time.Duration)} beforehand
    * to a value sufficiently large enough.
    *
    *
@@ -136,8 +138,8 @@ public interface JavascriptExecutor {
    *
    * @param script The JavaScript to execute.
    * @param args The arguments to the script. May be empty.
-   * @return One of Boolean, Long, String, List, WebElement, or null.
-   * @see WebDriver.Timeouts#setScriptTimeout(long, java.util.concurrent.TimeUnit)
+   * @return One of Boolean, Long, String, List, Map, WebElement, or null.
+   * @see WebDriver.Timeouts#setScriptTimeout(java.time.Duration)
    */
   Object executeAsyncScript(String script, Object... args);
 }

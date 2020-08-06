@@ -1,5 +1,5 @@
-# encoding: utf-8
-#
+# frozen_string_literal: true
+
 # Licensed to the Software Freedom Conservancy (SFC) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -17,7 +17,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-require File.expand_path('../../spec_helper', __FILE__)
+require File.expand_path('../spec_helper', __dir__)
 
 module Selenium
   module WebDriver
@@ -31,7 +31,7 @@ module Selenium
           allow(File).to receive(:exist?).with(model).and_return true
           allow(File).to receive(:directory?).with(model).and_return true
 
-          Dir.stub(mktmpdir: '/tmp/some/path')
+          allow(Dir).to receive(:mktmpdir).and_return('/tmp/some/path')
           allow(FileUtils).to receive(:rm_rf)
           allow(FileUtils).to receive(:mkdir_p)
           allow(FileUtils).to receive(:cp_r)
@@ -44,14 +44,14 @@ module Selenium
 
         it 'reads existing prefs' do
           expect(File).to receive(:read).with('/some/path/Default/Preferences')
-            .and_return('{"autofill": {"enabled": false}}')
+                                        .and_return('{"autofill": {"enabled": false}}')
 
           expect(model_profile['autofill.enabled']).to eq(false)
         end
 
         it 'writes out prefs' do
           expect(File).to receive(:read).with('/some/path/Default/Preferences')
-            .and_return('{"autofill": {"enabled": false}}')
+                                        .and_return('{"autofill": {"enabled": false}}')
 
           model_profile['some.other.pref'] = 123
 

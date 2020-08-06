@@ -15,13 +15,12 @@
 // specific language governing permissions and limitations
 // under the License.
 
-
 package org.openqa.selenium.environment;
 
-import org.openqa.selenium.environment.webserver.AppServer;
-
-import com.google.common.base.Preconditions;
 import com.google.common.net.InetAddresses;
+
+import org.openqa.selenium.environment.webserver.AppServer;
+import org.openqa.selenium.internal.Require;
 
 public class DomainHelper {
 
@@ -32,15 +31,15 @@ public class DomainHelper {
   }
 
   public String getUrlForFirstValidHostname(String path) {
-    Preconditions.checkArgument(
-      isValidHostname(appServer.getHostName()),
-      "Expected valid hostname but was %s",
-      appServer.getHostName());
+    Require.precondition(
+        isValidHostname(appServer.getHostName()),
+        "Expected valid hostname but was %s",
+        appServer.getHostName());
     return appServer.whereIs(path);
   }
 
   public String getSecureUrlForFirstValidHostname(String path) {
-    Preconditions.checkArgument(
+    Require.precondition(
         isValidHostname(appServer.getHostName()),
         "Expected valid hostname but was %s",
         appServer.getHostName());
@@ -48,7 +47,7 @@ public class DomainHelper {
   }
 
   public String getUrlForSecondValidHostname(String path) {
-    Preconditions.checkArgument(
+    Require.precondition(
       isValidHostname(appServer.getAlternateHostName()),
       "Expected valid hostname but was %s",
       appServer.getAlternateHostName());

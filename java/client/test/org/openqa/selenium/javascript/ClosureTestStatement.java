@@ -18,20 +18,21 @@
 package org.openqa.selenium.javascript;
 
 import static org.junit.Assert.fail;
+import static org.openqa.selenium.testing.TestUtilities.isOnTravis;
 
+import com.google.common.base.Stopwatch;
+
+import org.junit.runners.model.Statement;
 import org.openqa.selenium.JavascriptExecutor;
 import org.openqa.selenium.OutputType;
 import org.openqa.selenium.TakesScreenshot;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.WebDriverException;
 
-import com.google.common.base.Function;
-import com.google.common.base.Stopwatch;
-import com.google.common.base.Supplier;
-import org.junit.runners.model.Statement;
-
 import java.net.URL;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Function;
+import java.util.function.Supplier;
 import java.util.logging.Logger;
 
 public class ClosureTestStatement extends Statement {
@@ -43,8 +44,11 @@ public class ClosureTestStatement extends Statement {
   private final Function<String, URL> filePathToUrlFn;
   private final long timeoutSeconds;
 
-  public ClosureTestStatement(Supplier<WebDriver> driverSupplier,
-      String testPath, Function<String, URL> filePathToUrlFn, long timeoutSeconds) {
+  public ClosureTestStatement(
+      Supplier<WebDriver> driverSupplier,
+      String testPath,
+      Function<String, URL> filePathToUrlFn,
+      long timeoutSeconds) {
     this.driverSupplier = driverSupplier;
     this.testPath = testPath;
     this.filePathToUrlFn = filePathToUrlFn;
@@ -60,13 +64,14 @@ public class ClosureTestStatement extends Statement {
 
     WebDriver driver = driverSupplier.get();
 
-    // Attempt to make the window as big as possible.
-    try {
-      driver.manage().window().maximize();
-    } catch (RuntimeException ignored) {
-      // We tried.
+    if (!isOnTravis()) {
+      // Attempt to make the window as big as possible.
+      try {
+        driver.manage().window().maximize();
+      } catch (RuntimeException ignored) {
+        // We tried.
+      }
     }
-
 
     JavascriptExecutor executor = (JavascriptExecutor) driver;
     // Avoid Safari JS leak between tests.
@@ -103,14 +108,14 @@ public class ClosureTestStatement extends Statement {
     return (String) executor.executeScript(query.script);
   }
 
-  private static enum Query {
+  private enum Query {
     IS_FINISHED("return !!tr && tr.isFinished();"),
     IS_SUCCESS("return !!tr && tr.isSuccess();"),
     GET_REPORT("return tr.getReport(true);");
 
     private final String script;
 
-    private Query(String script) {
+    Query(String script) {
       this.script = "var tr = window.top.G_testRunner;" + script;
     }
   }

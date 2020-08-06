@@ -17,18 +17,19 @@
 
 package org.openqa.selenium.remote.internal;
 
-import com.google.common.base.Function;
-import com.google.common.collect.Collections2;
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
+import static java.util.stream.Collectors.toList;
 
-import org.openqa.selenium.internal.WrapsElement;
+import com.google.common.collect.ImmutableMap;
+
+import org.openqa.selenium.WrapsElement;
 import org.openqa.selenium.remote.Dialect;
 import org.openqa.selenium.remote.RemoteWebElement;
 
+import java.util.Arrays;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.Map;
+import java.util.function.Function;
 
 /**
  * Converts {@link RemoteWebElement} objects, which may be
@@ -40,6 +41,7 @@ import java.util.Map;
  *     WebDriver JSON Wire Protocol</a>
  */
 public class WebElementToJsonConverter implements Function<Object, Object> {
+  @Override
   public Object apply(Object arg) {
     if (arg == null || arg instanceof String || arg instanceof Boolean ||
         arg instanceof Number) {
@@ -57,17 +59,17 @@ public class WebElementToJsonConverter implements Function<Object, Object> {
     }
 
     if (arg.getClass().isArray()) {
-      arg = Lists.newArrayList((Object[]) arg);
+      arg = Arrays.asList((Object[]) arg);
     }
 
     if (arg instanceof Collection<?>) {
       Collection<?> args = (Collection<?>) arg;
-      return Collections2.transform(args, this);
+      return args.stream().map(this).collect(toList());
     }
 
     if (arg instanceof Map<?, ?>) {
       Map<?, ?> args = (Map<?, ?>) arg;
-      Map<String, Object> converted = Maps.newHashMapWithExpectedSize(args.size());
+      Map<String, Object> converted = new HashMap<>(args.size());
       for (Map.Entry<?, ?> entry : args.entrySet()) {
         Object key = entry.getKey();
         if (!(key instanceof String)) {
@@ -79,7 +81,7 @@ public class WebElementToJsonConverter implements Function<Object, Object> {
       return converted;
     }
 
-    throw new IllegalArgumentException("Argument is of an illegal type: " +
-        arg.getClass().getName());
+    throw new IllegalArgumentException(
+        "Argument is of an illegal type: " + arg.getClass().getName());
   }
 }

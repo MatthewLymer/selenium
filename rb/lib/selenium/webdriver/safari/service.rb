@@ -1,5 +1,5 @@
-# encoding: utf-8
-#
+# frozen_string_literal: true
+
 # Licensed to the Software Freedom Conservancy (SFC) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -20,30 +20,14 @@
 module Selenium
   module WebDriver
     module Safari
-      #
-      # @api private
-      #
-
       class Service < WebDriver::Service
         DEFAULT_PORT = 7050
-
-        private
-
-        def start_process
-          server_command = [@executable_path, "--port=#{@port}", *@extra_args]
-          @process       = ChildProcess.build(*server_command)
-
-          @process.io.inherit! if $DEBUG
-          @process.start
-        end
-
-        def stop_server
-          connect_to_server { |http| http.head('/shutdown') }
-        end
-
-        def cannot_connect_error_text
-          "unable to connect to safaridriver #{@host}:#{@port}"
-        end
+        EXECUTABLE = 'safaridriver'
+        MISSING_TEXT = <<~ERROR
+          Unable to find Apple's safaridriver which comes with Safari 10.
+          More info at https://webkit.org/blog/6900/webdriver-support-in-safari-10/
+        ERROR
+        SHUTDOWN_SUPPORTED = false
       end # Service
     end # Safari
   end # WebDriver

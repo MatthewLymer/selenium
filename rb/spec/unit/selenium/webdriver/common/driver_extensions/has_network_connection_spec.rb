@@ -1,5 +1,5 @@
-# encoding: utf-8
-#
+# frozen_string_literal: true
+
 # Licensed to the Software Freedom Conservancy (SFC) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -17,27 +17,33 @@
 # specific language governing permissions and limitations
 # under the License.
 
-require File.expand_path('../../../spec_helper', __FILE__)
+require File.expand_path('../../spec_helper', __dir__)
 
 module Selenium
   module WebDriver
     module DriverExtensions
       describe HasNetworkConnection do
-        class FakeDriver
-          include HasNetworkConnection
-        end
+        let(:fake_driver) do
+          Class.new(WebDriver::Driver) do
+            include HasNetworkConnection
+            attr_reader :bridge
 
-        let(:driver) { FakeDriver.new }
+            def initialize(bridge)
+              @bridge = bridge
+            end
+          end
+        end
+        let(:driver) { fake_driver.new(instance_double(Remote::Bridge)) }
 
         describe '#network_connection' do
           it 'returns the correct connection type' do
-            allow(@bridge).to receive(:network_connection) { 1 }
+            allow(driver.bridge).to receive(:network_connection).and_return(1)
 
             expect(driver.network_connection_type).to eq :airplane_mode
           end
 
           it 'returns an unknown connection value' do
-            allow(@bridge).to receive(:network_connection) { 5 }
+            allow(driver.bridge).to receive(:network_connection).and_return(5)
 
             expect(driver.network_connection_type).to eq 5
           end
@@ -45,7 +51,7 @@ module Selenium
 
         describe '#network_connection=' do
           it 'sends out the correct connection value' do
-            expect(@bridge).to receive(:network_connection=).with(1)
+            expect(driver.bridge).to receive(:network_connection=).with(1)
 
             driver.network_connection_type = :airplane_mode
           end

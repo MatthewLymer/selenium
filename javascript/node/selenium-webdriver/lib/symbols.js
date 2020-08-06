@@ -15,13 +15,12 @@
 // specific language governing permissions and limitations
 // under the License.
 
-'use strict';
+'use strict'
 
 /**
  * @fileoverview Defines well-known symbols used within the selenium-webdriver
  * library.
  */
-
 
 module.exports = {
   /**
@@ -30,9 +29,9 @@ module.exports = {
    * available, the serialize method will return a promise that will be resolved
    * with the serialized form.
    *
-   * Note that the described method is analgous to objects that define a
+   * Note that the described method is analogous to objects that define a
    * `toJSON()` method, except the serialized result may be a promise, or
    * another object with a promised property.
    */
-  serialize: Symbol('serialize')
-};
+  serialize: Symbol('serialize'),
+}

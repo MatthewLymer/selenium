@@ -1,39 +1,17 @@
-## Meta -
-OS:  
-<!-- Windows 10? OSX? -->
-Selenium Version:  
-<!-- 2.52.0, IDE, etc -->
-Browser:  
-<!-- Internet Explorer?  Firefox? 
+---
 
-FIREFOX 48+ IS ONLY COMPATIBLE WITH GECKODRIVER. Any issue logged here for 48+ will be closed as a duplicate of #2559
+name: 💬 Questions / Help
+about: If you have questions, please check our IRC or Slack
+---
 
-If the issue is with Google Chrome consider logging an issue with chromedriver instead:
-https://sites.google.com/a/chromium.org/chromedriver/help
+## 💬 Questions and Help
 
-If the issue is with Microsoft Edge consider logging an issue with Microsoft instead:
-https://developer.microsoft.com/en-us/microsoft-edge/platform/issues/
+## Note: You didn't choose a template in the previous step, therefore this will be treated as a "Questions / Help" one.
 
-If the issue is with Firefox GeckoDriver (aka Marionette) consider logging an issue with Mozilla:
-https://bugzilla.mozilla.org/buglist.cgi?product=Testing&component=Marionette
+### Please note that this issue tracker is not a help form and this issue will be closed.
 
-If the issue is with Safari, only Safari 10+ is supported. Please log any Safari issue with Apple:
-https://bugreport.apple.com/
+For questions or help please see:
 
-If the issue is with PhantomJS consider logging an issue with Ghostdriver:
-https://github.com/detro/ghostdriver
-
--->
-
-Browser Version:  
-<!-- e.g.: 49.0.2623.87 (64-bit) -->
-
-## Expected Behavior -
-
-## Actual Behavior -
-
-## Steps to reproduce -
-<!-- 
-Please be sure to include an SSCCE (Short, Self Contained, Correct [compilable] example) http://sscce.org/ 
-If you can't provide a link to the page, consider creating a reproducible page on https://jsfiddle.net/
--->
+- [SeleniumHQ IRC channel](https://webchat.freenode.net/)
+- [SeleniumHQ Slack channel](https://seleniumhq.slack.com/join/shared_invite/enQtODAwOTUzOTM5OTEwLTZjZjgzN2ExOTBmZGE0NjkwYzA2Nzc0MjczMGYwYjdiNGQ5YjI0ZjdjYjFhMjVlMjFkZWJmNDYyMmU1OTYyM2Y)
+- The [Selenium Users](https://groups.google.com/forum/#!forum/selenium-users) google group

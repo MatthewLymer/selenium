@@ -17,99 +17,121 @@
 
 import pytest
 
+from selenium.webdriver.common.by import By
 
-class TestEventFiring(object):
 
-    def testShouldFireClickEventWhenClicking(self, driver, pages):
-        pages.load("javascriptPage.html")
-        self._clickOnElementWhichRecordsEvents(driver)
-        self._assertEventFired(driver, "click")
+@pytest.mark.xfail_safari
+def testShouldFireClickEventWhenClicking(driver, pages):
+    pages.load("javascriptPage.html")
+    _clickOnElementWhichRecordsEvents(driver)
+    _assertEventFired(driver, "click")
 
-    def testShouldFireMouseDownEventWhenClicking(self, driver, pages):
-        pages.load("javascriptPage.html")
-        self._clickOnElementWhichRecordsEvents(driver)
-        self._assertEventFired(driver, "mousedown")
 
-    def testShouldFireMouseUpEventWhenClicking(self, driver, pages):
-        pages.load("javascriptPage.html")
-        self._clickOnElementWhichRecordsEvents(driver)
-        self._assertEventFired(driver, "mouseup")
+@pytest.mark.xfail_safari
+def testShouldFireMouseDownEventWhenClicking(driver, pages):
+    pages.load("javascriptPage.html")
+    _clickOnElementWhichRecordsEvents(driver)
+    _assertEventFired(driver, "mousedown")
 
-    def testShouldIssueMouseDownEvents(self, driver, pages):
-        pages.load("javascriptPage.html")
-        driver.find_element_by_id("mousedown").click()
-        result = driver.find_element_by_id("result").text
-        assert result == "mouse down"
 
-    def testShouldIssueClickEvents(self, driver, pages):
-        pages.load("javascriptPage.html")
-        driver.find_element_by_id("mouseclick").click()
-        result = driver.find_element_by_id("result").text
-        assert result == "mouse click"
+@pytest.mark.xfail_safari
+def testShouldFireMouseUpEventWhenClicking(driver, pages):
+    pages.load("javascriptPage.html")
+    _clickOnElementWhichRecordsEvents(driver)
+    _assertEventFired(driver, "mouseup")
 
-    def testShouldIssueMouseUpEvents(self, driver, pages):
-        pages.load("javascriptPage.html")
-        driver.find_element_by_id("mouseup").click()
-        result = driver.find_element_by_id("result").text
-        assert result == "mouse up"
 
-    def testMouseEventsShouldBubbleUpToContainingElements(self, driver, pages):
-        pages.load("javascriptPage.html")
-        driver.find_element_by_id("child").click()
-        result = driver.find_element_by_id("result").text
-        assert result == "mouse down"
+@pytest.mark.xfail_safari
+def testShouldIssueMouseDownEvents(driver, pages):
+    pages.load("javascriptPage.html")
+    driver.find_element(By.ID, "mousedown").click()
+    result = driver.find_element(By.ID, "result").text
+    assert result == "mouse down"
 
-    def testShouldEmitOnChangeEventsWhenSelectingElements(self, driver, pages):
-        pages.load("javascriptPage.html")
-        select = driver.find_element_by_id('selector')
-        options = select.find_elements_by_tag_name('option')
-        initialTextValue = driver.find_element_by_id("result").text
 
-        select.click()
-        assert driver.find_element_by_id("result").text == initialTextValue
-        options[1].click()
-        assert driver.find_element_by_id("result").text == "bar"
+@pytest.mark.xfail_safari
+def testShouldIssueClickEvents(driver, pages):
+    pages.load("javascriptPage.html")
+    driver.find_element(By.ID, "mouseclick").click()
+    result = driver.find_element(By.ID, "result").text
+    assert result == "mouse click"
 
-    def testShouldEmitOnChangeEventsWhenChangingTheStateOfACheckbox(self, driver, pages):
-        pages.load("javascriptPage.html")
-        checkbox = driver.find_element_by_id("checkbox")
-        checkbox.click()
-        assert driver.find_element_by_id("result").text == "checkbox thing"
 
-    def testShouldEmitClickEventWhenClickingOnATextInputElement(self, driver, pages):
-        pages.load("javascriptPage.html")
-        clicker = driver.find_element_by_id("clickField")
-        clicker.click()
+@pytest.mark.xfail_safari
+def testShouldIssueMouseUpEvents(driver, pages):
+    pages.load("javascriptPage.html")
+    driver.find_element(By.ID, "mouseup").click()
+    result = driver.find_element(By.ID, "result").text
+    assert result == "mouse up"
 
-        assert clicker.get_attribute("value") == "Clicked"
 
-    def testClearingAnElementShouldCauseTheOnChangeHandlerToFire(self, driver, pages):
-        pages.load("javascriptPage.html")
-        element = driver.find_element_by_id("clearMe")
-        element.clear()
-        result = driver.find_element_by_id("result")
-        assert result.text == "Cleared"
+@pytest.mark.xfail_safari
+def testMouseEventsShouldBubbleUpToContainingElements(driver, pages):
+    pages.load("javascriptPage.html")
+    driver.find_element(By.ID, "child").click()
+    result = driver.find_element(By.ID, "result").text
+    assert result == "mouse down"
 
-    # TODO Currently Failing and needs fixing
-    # def testSendingKeysToAnotherElementShouldCauseTheBlurEventToFire(self, driver, pages):
-    #    pages.load("javascriptPage.html")
-    #    element = driver.find_element_by_id("theworks")
-    #    element.send_keys("foo")
-    #    element2 = driver.find_element_by_id("changeable")
-    #    element2.send_keys("bar")
-    #    self._assertEventFired(driver, "blur")
 
-    # TODO Currently Failing and needs fixing
-    # def testSendingKeysToAnElementShouldCauseTheFocusEventToFire(self, driver, pages):
-    #    pages.load("javascriptPage.html")
-    #    element = driver.find_element_by_id("theworks")
-    #    element.send_keys("foo")
-    #    self._assertEventFired(driver, "focus")
+@pytest.mark.xfail_safari
+def testShouldEmitOnChangeEventsWhenSelectingElements(driver, pages):
+    pages.load("javascriptPage.html")
+    select = driver.find_element(By.ID, 'selector')
+    options = select.find_elements(By.TAG_NAME, 'option')
+    initialTextValue = driver.find_element(By.ID, "result").text
 
-    def _clickOnElementWhichRecordsEvents(self, driver):
-        driver.find_element_by_id("plainButton").click()
+    select.click()
+    assert driver.find_element(By.ID, "result").text == initialTextValue
+    options[1].click()
+    assert driver.find_element(By.ID, "result").text == "bar"
 
-    def _assertEventFired(self, driver, eventName):
-        result = driver.find_element_by_id("result")
-        text = result.text
-        assert eventName in text, "No " + eventName + " fired: " + text
+
+@pytest.mark.xfail_safari
+def testShouldEmitOnChangeEventsWhenChangingTheStateOfACheckbox(driver, pages):
+    pages.load("javascriptPage.html")
+    checkbox = driver.find_element(By.ID, "checkbox")
+    checkbox.click()
+    assert driver.find_element(By.ID, "result").text == "checkbox thing"
+
+
+def testShouldEmitClickEventWhenClickingOnATextInputElement(driver, pages):
+    pages.load("javascriptPage.html")
+    clicker = driver.find_element(By.ID, "clickField")
+    clicker.click()
+
+    assert clicker.get_attribute("value") == "Clicked"
+
+
+@pytest.mark.xfail_safari
+def testClearingAnElementShouldCauseTheOnChangeHandlerToFire(driver, pages):
+    pages.load("javascriptPage.html")
+    element = driver.find_element(By.ID, "clearMe")
+    element.clear()
+    result = driver.find_element(By.ID, "result")
+    assert result.text == "Cleared"
+
+# TODO Currently Failing and needs fixing
+# def testSendingKeysToAnotherElementShouldCauseTheBlurEventToFire(driver, pages):
+#    pages.load("javascriptPage.html")
+#    element = driver.find_element(By.ID, "theworks")
+#    element.send_keys("foo")
+#    element2 = driver.find_element(By.ID, "changeable")
+#    element2.send_keys("bar")
+#    _assertEventFired(driver, "blur")
+
+# TODO Currently Failing and needs fixing
+# def testSendingKeysToAnElementShouldCauseTheFocusEventToFire(driver, pages):
+#    pages.load("javascriptPage.html")
+#    element = driver.find_element(By.ID, "theworks")
+#    element.send_keys("foo")
+#    _assertEventFired(driver, "focus")
+
+
+def _clickOnElementWhichRecordsEvents(driver):
+    driver.find_element(By.ID, "plainButton").click()
+
+
+def _assertEventFired(driver, eventName):
+    result = driver.find_element(By.ID, "result")
+    text = result.text
+    assert eventName in text, "No " + eventName + " fired: " + text

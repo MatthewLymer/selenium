@@ -1,5 +1,5 @@
-# encoding: utf-8
-#
+# frozen_string_literal: true
+
 # Licensed to the Software Freedom Conservancy (SFC) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -22,8 +22,6 @@ require 'curb'
 module Selenium
   module WebDriver
     module Remote
-      # added for rescue
-      Bridge::QUIT_ERRORS << Curl::Err::RecvError
 
       module Http
         #
@@ -40,6 +38,11 @@ module Selenium
         #
 
         class Curb < Common
+
+          def quit_errors
+            [Curl::Err::RecvError] + super
+          end
+
           private
 
           def request(verb, url, headers, payload)
@@ -76,16 +79,16 @@ module Selenium
           end
 
           def client
-            @client ||= (
+            @client ||= begin
               c = Curl::Easy.new
 
               c.max_redirects   = MAX_REDIRECTS
               c.follow_location = true
               c.timeout         = @timeout if @timeout
-              c.verbose         = $DEBUG
+              c.verbose         = WebDriver.logger.info?
 
               c
-            )
+            end
           end
         end # Curb
       end # Http

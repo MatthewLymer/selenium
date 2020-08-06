@@ -1,5 +1,5 @@
-# encoding: utf-8
-#
+# frozen_string_literal: true
+
 # Licensed to the Software Freedom Conservancy (SFC) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -21,106 +21,97 @@ module Selenium
   module WebDriver
     #
     # Base class implementing default behavior of service object,
-    # responsible for starting and stopping driver implementations.
-    #
-    # Subclasses must implement the following private methods:
-    #   * #start_process
-    #   * #stop_server
-    #   * #cannot_connect_error_text
-    #
-    # @api private
+    # responsible for storing a service manager configuration.
     #
 
     class Service
-      START_TIMEOUT       = 20
-      SOCKET_LOCK_TIMEOUT = 45
-      STOP_TIMEOUT        = 20
+      class << self
+        attr_reader :driver_path
+
+        def chrome(**opts)
+          Chrome::Service.new(**opts)
+        end
+
+        def firefox(**opts)
+          Firefox::Service.new(**opts)
+        end
+
+        def ie(**opts)
+          IE::Service.new(**opts)
+        end
+        alias_method :internet_explorer, :ie
+
+        def edge(**opts)
+          Edge::Service.new(**opts)
+        end
+
+        def edge_chrome(**opts)
+          EdgeChrome::Service.new(**opts)
+        end
+
+        def edge_html(**opts)
+          EdgeHtml::Service.new(**opts)
+        end
+
+        def safari(**opts)
+          Safari::Service.new(**opts)
+        end
+
+        def driver_path=(path)
+          Platform.assert_executable path if path.is_a?(String)
+          @driver_path = path
+        end
+      end
 
       attr_accessor :host
+      attr_reader :executable_path, :port, :extra_args
 
-      def initialize(executable_path, port, *extra_args)
-        @executable_path = executable_path
-        @host            = Platform.localhost
-        @port            = Integer(port)
-        @extra_args      = extra_args
+      #
+      # End users should use a class method for the desired driver, rather than using this directly.
+      #
+      # @api private
+      #
+
+      def initialize(path: nil, port: nil, args: nil)
+        path ||= self.class.driver_path
+        port ||= self.class::DEFAULT_PORT
+        args ||= []
+
+        @executable_path = binary_path(path)
+        @host = Platform.localhost
+        @port = Integer(port)
+
+        @extra_args = args.is_a?(Hash) ? extract_service_args(args) : args
 
         raise Error::WebDriverError, "invalid port: #{@port}" if @port < 1
       end
 
-      def start
-        if process_running?
-          raise "already started: #{uri.inspect} #{@executable_path.inspect}"
-        end
-
-        Platform.exit_hook { stop } # make sure we don't leave the server running
-
-        socket_lock.locked do
-          find_free_port
-          start_process
-          connect_until_stable
-        end
+      def launch
+        sm = ServiceManager.new(self)
+        sm.start
+        sm
       end
 
-      def stop
-        return if process_exited?
-        stop_server
-      ensure
-        stop_process
+      def shutdown_supported
+        self.class::SHUTDOWN_SUPPORTED
       end
 
-      def uri
-        @uri ||= URI.parse("http://#{@host}:#{@port}")
+      protected
+
+      def extract_service_args(driver_opts)
+        driver_opts.key?(:args) ? driver_opts.delete(:args) : []
       end
 
       private
 
-      def connect_to_server
-        Net::HTTP.start(@host, @port) do |http|
-          http.open_timeout = STOP_TIMEOUT / 2
-          http.read_timeout = STOP_TIMEOUT / 2
+      def binary_path(path = nil)
+        path = path.call if path.is_a?(Proc)
+        path ||= Platform.find_binary(self.class::EXECUTABLE)
 
-          yield http
-        end
-      end
+        raise Error::WebDriverError, self.class::MISSING_TEXT unless path
 
-      def find_free_port
-        @port = PortProber.above(@port)
-      end
-
-      def start_process
-        raise NotImplementedError, 'subclass responsibility'
-      end
-
-      def stop_server
-        raise NotImplementedError, 'subclass responsibility'
-      end
-
-      def stop_process
-        @process.poll_for_exit STOP_TIMEOUT
-      rescue ChildProcess::TimeoutError
-        @process.stop STOP_TIMEOUT
-      end
-
-      def process_running?
-        @process && @process.alive?
-      end
-
-      def process_exited?
-        @process.nil? || @process.exited?
-      end
-
-      def connect_until_stable
-        socket_poller = SocketPoller.new @host, @port, START_TIMEOUT
-        return if socket_poller.connected?
-        raise Error::WebDriverError, cannot_connect_error_text
-      end
-
-      def cannot_connect_error_text
-        raise NotImplementedError, 'subclass responsibility'
-      end
-
-      def socket_lock
-        @socket_lock ||= SocketLock.new(@port - 1, SOCKET_LOCK_TIMEOUT)
+        Platform.assert_executable path
+        path
       end
     end # Service
   end # WebDriver

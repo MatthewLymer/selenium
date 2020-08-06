@@ -17,14 +17,21 @@
 
 package org.openqa.selenium.ie;
 
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
+import static java.util.Collections.unmodifiableList;
 
+import com.google.auto.service.AutoService;
+
+import org.openqa.selenium.Capabilities;
 import org.openqa.selenium.WebDriverException;
+import org.openqa.selenium.remote.BrowserType;
 import org.openqa.selenium.remote.service.DriverService;
 
 import java.io.File;
 import java.io.IOException;
+import java.time.Duration;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
 
 /**
  * Manages the life and death of an IEDriverServer.
@@ -49,36 +56,31 @@ public class InternetExplorerDriverService extends DriverService {
   public static final String IE_DRIVER_LOGLEVEL_PROPERTY = "webdriver.ie.driver.loglevel";
 
   /**
-   * System property that defines the implementation of the driver engine to use.
-   */
-  public static final String IE_DRIVER_ENGINE_PROPERTY = "webdriver.ie.driver.engine";
-
-  /**
    * System property that defines host to which will be bound IEDriverServer.
    */
-  public final static String IE_DRIVER_HOST_PROPERTY = "webdriver.ie.driver.host";
+  public static final String IE_DRIVER_HOST_PROPERTY = "webdriver.ie.driver.host";
 
   /**
    * System property that defines path to which will be extracted IEDriverServer library.
    */
-  public final static String IE_DRIVER_EXTRACT_PATH_PROPERTY = "webdriver.ie.driver.extractpath";
+  public static final String IE_DRIVER_EXTRACT_PATH_PROPERTY = "webdriver.ie.driver.extractpath";
 
   /**
    * System property that defines logging to stdout for IEDriverServer.
    */
-  public final static String IE_DRIVER_SILENT_PROPERTY = "webdriver.ie.driver.silent";
+  public static final String IE_DRIVER_SILENT_PROPERTY = "webdriver.ie.driver.silent";
 
   /**
-   *
    * @param executable The IEDriverServer executable.
    * @param port Which port to start the IEDriverServer on.
+   * @param timeout     Timeout waiting for driver server to start.
    * @param args The arguments to the launched server.
    * @param environment The environment for the launched server.
    * @throws IOException If an I/O error occurs.
    */
-  private InternetExplorerDriverService(File executable, int port, ImmutableList<String> args,
-                                        ImmutableMap<String, String> environment) throws IOException {
-    super(executable, port, args, environment);
+  private InternetExplorerDriverService(File executable, int port, Duration timeout, List<String> args,
+                                        Map<String, String> environment) throws IOException {
+    super(executable, port, timeout, args, environment);
   }
 
   /**
@@ -90,22 +92,35 @@ public class InternetExplorerDriverService extends DriverService {
    * @return A new InternetExplorerDriverService using the default configuration.
    */
   public static InternetExplorerDriverService createDefaultService() {
-    return new Builder().usingAnyFreePort().build();
+    return new Builder().build();
   }
 
   /**
    * Builder used to configure new {@link InternetExplorerDriverService} instances.
    */
+  @AutoService(DriverService.Builder.class)
   public static class Builder extends DriverService.Builder<
       InternetExplorerDriverService, InternetExplorerDriverService.Builder> {
 
     private InternetExplorerDriverLogLevel logLevel;
-    private InternetExplorerDriverEngine engineImplementation;
     private String host = null;
     private File extractPath = null;
     private Boolean silent = null;
-    private Boolean forceCreateProcess = null;
-    private String ieSwitches = null;
+
+    @Override
+    public int score(Capabilities capabilites) {
+      int score = 0;
+
+      if (BrowserType.IE.equals(capabilites.getBrowserName())) {
+        score++;
+      }
+
+      if (capabilites.getCapability(InternetExplorerOptions.IE_OPTIONS) != null) {
+        score++;
+      }
+
+      return score;
+    }
 
     /**
      * Configures the logging level for the driver server.
@@ -115,17 +130,6 @@ public class InternetExplorerDriverService extends DriverService {
      */
     public Builder withLogLevel(InternetExplorerDriverLogLevel logLevel) {
       this.logLevel = logLevel;
-      return this;
-    }
-
-    /**
-     * Configures the driver engine implementation for the driver server.
-     *
-     * @param engineImplementation The engine implementation to be used.
-     * @return A self reference.
-     */
-    public Builder withEngineImplementation(InternetExplorerDriverEngine engineImplementation) {
-      this.engineImplementation = engineImplementation;
       return this;
     }
 
@@ -154,7 +158,7 @@ public class InternetExplorerDriverService extends DriverService {
     /**
      * Configures silence in stdout of the driver server by unlogged messages.
      *
-     * @param silent To be silent in stdout ir not.
+     * @param silent To be silent in stdout or not.
      * @return A self reference.
      */
     public Builder withSilent(Boolean silent) {
@@ -170,7 +174,7 @@ public class InternetExplorerDriverService extends DriverService {
     }
 
     @Override
-    protected ImmutableList<String> createArgs() {
+    protected List<String> createArgs() {
       if (getLogFile() == null) {
         String logFilePath = System.getProperty(IE_DRIVER_LOGFILE_PROPERTY);
         if (logFilePath != null) {
@@ -181,12 +185,6 @@ public class InternetExplorerDriverService extends DriverService {
         String level = System.getProperty(IE_DRIVER_LOGLEVEL_PROPERTY);
         if (level != null) {
           logLevel = InternetExplorerDriverLogLevel.valueOf(level);
-        }
-      }
-      if (engineImplementation == null) {
-        String engineToUse = System.getProperty(IE_DRIVER_ENGINE_PROPERTY);
-        if (engineToUse != null) {
-          engineImplementation = InternetExplorerDriverEngine.valueOf(engineToUse);
         }
       }
       if (host == null) {
@@ -208,36 +206,34 @@ public class InternetExplorerDriverService extends DriverService {
         }
       }
 
-      ImmutableList.Builder<String> argsBuilder = ImmutableList.builder();
-      argsBuilder.add(String.format("--port=%d", getPort()));
+      List<String> args = new ArrayList<>();
+      args.add(String.format("--port=%d", getPort()));
       if (getLogFile() != null) {
-        argsBuilder.add(String.format("--log-file=\"%s\"", getLogFile().getAbsolutePath()));
+        args.add(String.format("--log-file=\"%s\"", getLogFile().getAbsolutePath()));
       }
       if (logLevel != null) {
-        argsBuilder.add(String.format("--log-level=%s", logLevel.toString()));
-      }
-      if (engineImplementation != null) {
-        argsBuilder.add(String.format("--implementation=%s", engineImplementation.toString()));
+        args.add(String.format("--log-level=%s", logLevel.toString()));
       }
       if (host != null) {
-        argsBuilder.add(String.format("--host=%s", host));
+        args.add(String.format("--host=%s", host));
       }
       if (extractPath != null) {
-        argsBuilder.add(String.format("--extract-path=\"%s\"", extractPath.getAbsolutePath()));
+        args.add(String.format("--extract-path=\"%s\"", extractPath.getAbsolutePath()));
       }
       if (silent != null && silent.equals(Boolean.TRUE)) {
-        argsBuilder.add("--silent");
+        args.add("--silent");
       }
 
-      return argsBuilder.build();
+      return unmodifiableList(args);
     }
 
     @Override
     protected InternetExplorerDriverService createDriverService(File exe, int port,
-                                                                ImmutableList<String> args,
-                                                                ImmutableMap<String, String> environment) {
+                                                                Duration timeout,
+                                                                List<String> args,
+                                                                Map<String, String> environment) {
       try {
-        return new InternetExplorerDriverService(exe, port, args, environment);
+        return new InternetExplorerDriverService(exe, port, timeout, args, environment);
       } catch (IOException e) {
         throw new WebDriverException(e);
       }

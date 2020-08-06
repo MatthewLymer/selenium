@@ -111,6 +111,7 @@ function getModules() {
   console.log('Scanning sources...');
   const excludeDirs = [
     path.join(__dirname, 'selenium-webdriver/example'),
+    path.join(__dirname, 'selenium-webdriver/lib/atoms'),
     path.join(__dirname, 'selenium-webdriver/lib/firefox'),
     path.join(__dirname, 'selenium-webdriver/lib/safari'),
     path.join(__dirname, 'selenium-webdriver/lib/test'),
@@ -196,7 +197,7 @@ function buildConfig(modules) {
     ],
     externs: [path.join(externs, 'global.js')],
     externModules: [
-        path.join(externs, 'adm-zip.js'),
+        path.join(externs, 'jszip.js'),
         path.join(externs, 'mocha.js'),
         path.join(externs, 'rimraf.js'),
         path.join(externs, 'tmp.js'),
@@ -204,9 +205,9 @@ function buildConfig(modules) {
         path.join(externs, 'xml2js.js')
     ],
     sourceUrlTemplate:
-        'https://github.com/SeleniumHQ/selenium/tree/master/'
+        'https://github.com/SeleniumHQ/selenium/tree/trunk/'
             + 'javascript/node/selenium-webdriver/%path%#L%line%',
-    strict: true
+    strict: false
   }
 }
 

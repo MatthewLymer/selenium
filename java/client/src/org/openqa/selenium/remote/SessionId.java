@@ -17,12 +17,22 @@
 
 package org.openqa.selenium.remote;
 
+import org.openqa.selenium.internal.Require;
+import org.openqa.selenium.json.JsonException;
+
+import java.util.Map;
+import java.util.UUID;
+
 public class SessionId {
 
   private final String opaqueKey;
 
+  public SessionId(UUID uuid) {
+    this(Require.nonNull("Session ID key", uuid).toString());
+  }
+
   public SessionId(String opaqueKey) {
-    this.opaqueKey = opaqueKey;
+    this.opaqueKey = Require.nonNull("Session ID key", opaqueKey);
   }
 
   @Override
@@ -37,9 +47,25 @@ public class SessionId {
 
   @Override
   public boolean equals(Object obj) {
-    if (obj instanceof SessionId) {
-      return opaqueKey.equals(((SessionId) obj).opaqueKey);
+    return obj instanceof SessionId && opaqueKey.equals(((SessionId) obj).opaqueKey);
+  }
+
+  private String toJson() {
+    return opaqueKey;
+  }
+
+  private static SessionId fromJson(Object raw) {
+    if (raw instanceof String) {
+      return new SessionId(String.valueOf(raw));
     }
-    return false;
+
+    if (raw instanceof Map) {
+      Map<?, ?> map = (Map<?, ?>) raw;
+      if (map.get("value") instanceof String) {
+        return new SessionId(String.valueOf(map.get("value")));
+      }
+    }
+
+    throw new JsonException("Unable to coerce session id from " + raw);
   }
 }

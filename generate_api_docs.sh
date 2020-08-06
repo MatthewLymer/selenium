@@ -2,10 +2,12 @@
 ./go javadocs || exit
 
 # Python
-./go py_docs || exit
+./go //py:setup //py:init py_docs || exit
 
 # Ruby
 ./go //rb:docs || exit
+
+git checkout rb/Gemfile.lock
 
 # switch to gh-pages and copy the files
 git checkout gh-pages || exit
@@ -35,5 +37,5 @@ git commit -am "updating javadoc and py docs"
 echo "pushing to origin gh-pages"
 git push origin gh-pages
 
-echo "switching back to master branch"
-git checkout master
+echo "switching back to trunk branch"
+git checkout trunk

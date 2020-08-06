@@ -20,6 +20,7 @@ package org.openqa.selenium.remote.service;
 import com.google.common.base.Throwables;
 
 import org.openqa.selenium.WebDriverException;
+import org.openqa.selenium.internal.Require;
 import org.openqa.selenium.remote.Command;
 import org.openqa.selenium.remote.CommandInfo;
 import org.openqa.selenium.remote.DriverCommand;
@@ -46,7 +47,7 @@ public class DriverCommandExecutor extends HttpCommandExecutor {
    * @param service The DriverService to send commands to.
    */
   public DriverCommandExecutor(DriverService service) {
-    super(service.getUrl());
+    super(Require.nonNull("DriverService", service.getUrl()));
     this.service = service;
   }
 
@@ -87,7 +88,7 @@ public class DriverCommandExecutor extends HttpCommandExecutor {
           !service.isRunning()) {
         throw new WebDriverException("The driver server has unexpectedly died!", t);
       }
-      Throwables.propagateIfPossible(t);
+      Throwables.throwIfUnchecked(t);
       throw new WebDriverException(t);
     } finally {
       if (DriverCommand.QUIT.equals(command.getName())) {

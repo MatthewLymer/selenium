@@ -17,56 +17,77 @@
 
 package org.openqa.selenium.testing.drivers;
 
-import static org.openqa.selenium.testing.DevMode.isInDevMode;
-
-import com.google.common.base.Supplier;
-import com.google.common.base.Throwables;
+import com.google.common.collect.ImmutableMap;
 
 import org.openqa.selenium.Capabilities;
 import org.openqa.selenium.WebDriver;
+import org.openqa.selenium.chrome.ChromeOptions;
+import org.openqa.selenium.edge.EdgeOptions;
+import org.openqa.selenium.edgehtml.EdgeHtmlOptions;
+import org.openqa.selenium.firefox.FirefoxDriver;
+import org.openqa.selenium.firefox.FirefoxOptions;
+import org.openqa.selenium.htmlunit.HtmlUnitDriver;
+import org.openqa.selenium.ie.InternetExplorerDriver;
+import org.openqa.selenium.ie.InternetExplorerOptions;
+import org.openqa.selenium.opera.OperaOptions;
+import org.openqa.selenium.remote.AbstractDriverOptions;
+import org.openqa.selenium.remote.BrowserType;
+import org.openqa.selenium.safari.SafariDriver;
+import org.openqa.selenium.safari.SafariOptions;
 
+import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
-import java.util.logging.Logger;
+import java.util.Map;
+import java.util.function.Function;
+import java.util.function.Supplier;
 
 public class DefaultDriverSupplier implements Supplier<WebDriver> {
 
-  private static final Logger log = Logger.getLogger(DefaultDriverSupplier.class.getName());
-  private Class<? extends WebDriver> driverClass;
-  private final Capabilities desiredCapabilities;
-  private final Capabilities requiredCapabilities;
+  private static Map<Class<? extends AbstractDriverOptions>, Function<Capabilities, WebDriver>> driverConstructors =
+      new ImmutableMap.Builder<Class<? extends AbstractDriverOptions>, Function<Capabilities, WebDriver>>()
+          .put(ChromeOptions.class, TestChromeDriver::new)
+          .put(OperaOptions.class, TestOperaBlinkDriver::new)
+          .put(FirefoxOptions.class, FirefoxDriver::new)
+          .put(InternetExplorerOptions.class, InternetExplorerDriver::new)
+          .put(EdgeHtmlOptions.class, TestEdgeHtmlDriver::new)
+          .put(EdgeOptions.class, TestEdgeDriver::new)
+          .put(SafariOptions.class, SafariDriver::new)
+          .build();
 
-  public DefaultDriverSupplier(Capabilities desiredCapabilities,
-      Capabilities requiredCapabilities) {
-    this.desiredCapabilities = desiredCapabilities;
-    this.requiredCapabilities = requiredCapabilities;
+  private Capabilities capabilities;
 
-    try {
-      // Only support a default driver if we're actually in dev mode.
-      if (isInDevMode()) {
-        driverClass = Class.forName("org.openqa.selenium.testing.drivers.SynthesizedFirefoxDriver")
-            .asSubclass(WebDriver.class);
-      } else {
-        driverClass = null;
-      }
-    } catch (ClassNotFoundException e) {
-      log.severe("Unable to find the default class on the classpath. Tests will fail");
-    }
+  DefaultDriverSupplier(Capabilities capabilities) {
+    this.capabilities = capabilities;
   }
 
+  @Override
   public WebDriver get() {
-    log.info("Providing default driver instance");
+    Function<Capabilities, WebDriver> driverConstructor;
 
-    try {
-      return driverClass.getConstructor(Capabilities.class, Capabilities.class).
-          newInstance(desiredCapabilities, requiredCapabilities);
-    } catch (InstantiationException e) {
-      throw new RuntimeException(e);
-    } catch (IllegalAccessException e) {
-      throw new RuntimeException(e);
-    } catch (NoSuchMethodException e) {
-      throw new RuntimeException(e);
-    } catch (InvocationTargetException e) {
-      throw Throwables.propagate(e.getTargetException());
+    if (capabilities != null) {
+      driverConstructor = driverConstructors.getOrDefault(capabilities.getClass(), caps -> {
+        if (capabilities.getBrowserName().equals(BrowserType.HTMLUNIT)) {
+          return new HtmlUnitDriver();
+        }
+        throw new RuntimeException("No driver can be provided for capabilities " + caps);
+      });
+    } else {
+      String className = System.getProperty("selenium.browser.class_name");
+      try {
+        Class<? extends WebDriver> driverClass = Class.forName(className).asSubclass(WebDriver.class);
+        Constructor<? extends WebDriver> constructor = driverClass.getConstructor(Capabilities.class);
+        driverConstructor = caps -> {
+          try {
+            return constructor.newInstance(caps);
+          } catch (InstantiationException | IllegalAccessException | InvocationTargetException e) {
+            throw new RuntimeException(e);
+          }
+        };
+      } catch (ClassNotFoundException | NoSuchMethodException e) {
+        throw new RuntimeException(e);
+      }
     }
+
+    return driverConstructor.apply(capabilities);
   }
 }

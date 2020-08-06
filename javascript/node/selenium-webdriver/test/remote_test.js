@@ -15,103 +15,83 @@
 // specific language governing permissions and limitations
 // under the License.
 
-'use strict';
+'use strict'
 
-var assert = require('assert'),
-    fs = require('fs'),
-    path = require('path');
+const assert = require('assert')
+const path = require('path')
+const io = require('../io')
+const cmd = require('../lib/command')
+const remote = require('../remote')
+const { CancellationError } = require('../http/util')
 
-var promise = require('../').promise,
-    io = require('../io'),
-    cmd = require('../lib/command'),
-    remote = require('../remote');
+describe('DriverService', function () {
+  describe('start()', function () {
+    var service
 
-const {enablePromiseManager} = require('../lib/test/promise');
-
-describe('DriverService', function() {
-  describe('start()', function() {
-    var service;
-
-    beforeEach(function() {
+    beforeEach(function () {
       service = new remote.DriverService(process.execPath, {
         port: 1234,
-        args: ['-e', 'process.exit(1)']
-      });
-    });
+        args: ['-e', 'process.exit(1)'],
+      })
+    })
 
-    afterEach(function() {
-      return service.kill();
-    });
+    afterEach(function () {
+      return service.kill()
+    })
 
-    it('fails if child-process dies', function() {
-      this.timeout(1000);
-      return service.start(500).then(expectFailure, verifyFailure);
-    });
-
-    enablePromiseManager(function() {
-      describe(
-          'failures propagate through control flow if child-process dies',
-          function() {
-            it('', function() {
-              this.timeout(1000);
-
-              return promise.controlFlow().execute(function() {
-                promise.controlFlow().execute(function() {
-                  return service.start(500);
-                });
-              }).then(expectFailure, verifyFailure);
-            });
-          });
-    });
+    it('fails if child-process dies', function () {
+      return service.start(500).then(expectFailure, verifyFailure)
+    })
 
     function verifyFailure(e) {
-      assert.ok(!(e instanceof promise.CancellationError));
-      assert.equal('Server terminated early with status 1', e.message);
+      assert.ok(!(e instanceof CancellationError))
+      assert.equal('Server terminated early with status 1', e.message)
     }
 
     function expectFailure() {
-      throw Error('expected to fail');
+      throw Error('expected to fail')
     }
-  });
-});
+  })
+})
 
-describe('FileDetector', function() {
+describe('FileDetector', function () {
   class ExplodingDriver {
-    schedule() {
-      throw Error('unexpected call');
+    execute() {
+      throw Error('unexpected call')
     }
   }
 
-  it('returns the original path if the file does not exist', function() {
-    return io.tmpDir(dir => {
-      let theFile = path.join(dir, 'not-there');
-      return (new remote.FileDetector)
-          .handleFile(new ExplodingDriver, theFile)
-          .then(f => assert.equal(f, theFile));
-    });
-  });
+  it('returns the original path if the file does not exist', function () {
+    return io.tmpDir().then((dir) => {
+      let theFile = path.join(dir, 'not-there')
+      return new remote.FileDetector()
+        .handleFile(new ExplodingDriver(), theFile)
+        .then((f) => assert.equal(f, theFile))
+    })
+  })
 
-  it('returns the original path if it is a directory', function() {
-    return io.tmpDir(dir => {
-      return (new remote.FileDetector)
-          .handleFile(new ExplodingDriver, dir)
-          .then(f => assert.equal(f, dir));
-    });
-  });
+  it('returns the original path if it is a directory', function () {
+    return io.tmpDir().then((dir) => {
+      return new remote.FileDetector()
+        .handleFile(new ExplodingDriver(), dir)
+        .then((f) => assert.equal(f, dir))
+    })
+  })
 
-  it('attempts to upload valid files', function() {
-    return io.tmpFile(theFile => {
-      return (new remote.FileDetector)
-          .handleFile(
-              new (class FakeDriver {
-                schedule(command) {
-                  assert.equal(command.getName(), cmd.Name.UPLOAD_FILE);
-                  assert.equal(typeof command.getParameters()['file'], 'string');
-                  return Promise.resolve('success!');
-                }
-              }),
-              theFile)
-          .then(f => assert.equal(f, 'success!'));
-    });
-  });
-});
+  it('attempts to upload valid files', function () {
+    return io.tmpFile().then((theFile) => {
+      return new remote.FileDetector()
+        .handleFile(
+          new (class FakeDriver {
+            execute(command) {
+              assert.equal(command.getName(), cmd.Name.UPLOAD_FILE)
+              assert.equal(typeof command.getParameters()['file'], 'string')
+              return Promise.resolve('success!')
+            }
+          })(),
+          theFile
+        )
+        .then((f) => assert.equal(f, 'success!'))
+    })
+  })
+})

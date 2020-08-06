@@ -56,7 +56,7 @@ class Service(object):
         return "http://%s" % utils.join_host_port('localhost', self.port)
 
     def command_line_args(self):
-        raise NotImplemented("This method needs to be implemented in a sub class")
+        raise NotImplementedError("This method needs to be implemented in a sub class")
 
     def start(self):
         """
@@ -71,7 +71,9 @@ class Service(object):
             cmd.extend(self.command_line_args())
             self.process = subprocess.Popen(cmd, env=self.env,
                                             close_fds=platform.system() != 'Windows',
-                                            stdout=self.log_file, stderr=self.log_file)
+                                            stdout=self.log_file,
+                                            stderr=self.log_file,
+                                            stdin=PIPE)
         except TypeError:
             raise
         except OSError as err:
@@ -96,9 +98,10 @@ class Service(object):
             self.assert_process_still_running()
             if self.is_connectable():
                 break
+
             count += 1
-            time.sleep(1)
-            if count == 30:
+            time.sleep(0.5)
+            if count == 60:
                 raise WebDriverException("Can not connect to the Service %s" % self.path)
 
     def assert_process_still_running(self):
@@ -125,12 +128,12 @@ class Service(object):
             url_request.urlopen("%s/shutdown" % self.service_url)
         except URLError:
             return
-        count = 0
-        while self.is_connectable():
-            if count == 30:
+
+        for x in range(30):
+            if not self.is_connectable():
                 break
-            count += 1
-            time.sleep(1)
+            else:
+                time.sleep(1)
 
     def stop(self):
         """
@@ -160,14 +163,17 @@ class Service(object):
                     except AttributeError:
                         pass
                 self.process.terminate()
-                self.process.kill()
                 self.process.wait()
+                self.process.kill()
                 self.process = None
         except OSError:
-            # kill may not be available under windows environment
             pass
 
     def __del__(self):
-        # subprocess.Popen doesn't send signal on __del__;
-        # we have to try to stop the launched process.
-        self.stop()
+        # `subprocess.Popen` doesn't send signal on `__del__`;
+        # so we attempt to close the launched process when `__del__`
+        # is triggered.
+        try:
+            self.stop()
+        except Exception:
+            pass

@@ -1,5 +1,5 @@
-# encoding: utf-8
-#
+# frozen_string_literal: true
+
 # Licensed to the Software Freedom Conservancy (SFC) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -19,32 +19,27 @@
 
 require 'net/http'
 
-require 'selenium/webdriver/chrome/service'
-require 'selenium/webdriver/chrome/bridge'
-require 'selenium/webdriver/chrome/profile'
-
 module Selenium
   module WebDriver
     module Chrome
-      MISSING_TEXT = <<-ERROR.tr("\n", '').freeze
-        Unable to find chromedriver. Please download the server from
-        http://chromedriver.storage.googleapis.com/index.html and place it
-        somewhere on your PATH. More info at https://github.com/SeleniumHQ/selenium/wiki/ChromeDriver.
-      ERROR
+      autoload :Bridge, 'selenium/webdriver/chrome/bridge'
+      autoload :Driver, 'selenium/webdriver/chrome/driver'
+      autoload :Profile, 'selenium/webdriver/chrome/profile'
+      autoload :Options, 'selenium/webdriver/chrome/options'
+      autoload :Service, 'selenium/webdriver/chrome/service'
 
       def self.driver_path=(path)
-        Platform.assert_executable path
-        @driver_path = path
+        WebDriver.logger.deprecate 'Selenium::WebDriver::Chrome#driver_path=',
+                                   'Selenium::WebDriver::Chrome::Service#driver_path=',
+                                   id: :driver_path
+        Selenium::WebDriver::Chrome::Service.driver_path = path
       end
 
       def self.driver_path
-        @driver_path ||= begin
-          path = Platform.find_binary('chromedriver')
-          raise Error::WebDriverError, MISSING_TEXT unless path
-          Platform.assert_executable path
-
-          path
-        end
+        WebDriver.logger.deprecate 'Selenium::WebDriver::Chrome#driver_path',
+                                   'Selenium::WebDriver::Chrome::Service#driver_path',
+                                   id: :driver_path
+        Selenium::WebDriver::Chrome::Service.driver_path
       end
 
       def self.path=(path)
